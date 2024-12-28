@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
@@ -47,7 +47,9 @@ jobs:
 
       # Install dependencies
       - name: Install Dependencies
-        run: npm install --global yarn && yarn install
+        run: |
+          npm install --global yarn
+          yarn install --frozen-lockfile
 
       # Decode Keystore
       - name: Decode Keystore
@@ -59,7 +61,7 @@ jobs:
       - name: Build APK
         run: |
           cd android
-          ./gradlew assemblePlayRelease
+          ./gradlew assemblePlayRelease --no-daemon
 
       # Upload to Firebase App Distribution
       - name: Upload to Firebase
