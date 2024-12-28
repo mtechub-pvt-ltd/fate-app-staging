@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "735734481931",
+    "project_id": "fate-app-23e57",
+    "storage_bucket": "fate-app-23e57.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:735734481931:android:c1e9576d92634a882cb30e",
+        "android_client_info": {
+          "package_name": "com.fate_app_mtechub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAy46c40xWewfT9NmeBXoYFGILJXlfe0FQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

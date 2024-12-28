@@ -1,0 +1,14 @@
+current directory: /Users/muhammadusama/ProjectsNonicloude/fate/fate_app_mtechub/vendor/bundle/ruby/2.6.0/gems/json-2.7.1/ext/json
+/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/bin/ruby -I /Library/Ruby/Site/2.6.0 -r ./siteconf20240310-51392-1qjj4ry.rb extconf.rb
+/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/universal-darwin23/rbconfig.rb:21: warning: Insecure world writable dir /Users/muhammadusama/ProjectsNonicloude/fate in PATH, mode 040777
+creating Makefile
+
+current directory: /Users/muhammadusama/ProjectsNonicloude/fate/fate_app_mtechub/vendor/bundle/ruby/2.6.0/gems/json-2.7.1/ext/json
+make "DESTDIR=" clean
+
+current directory: /Users/muhammadusama/ProjectsNonicloude/fate/fate_app_mtechub/vendor/bundle/ruby/2.6.0/gems/json-2.7.1/ext/json
+make "DESTDIR="
+make: Nothing to be done for `all'.
+
+current directory: /Users/muhammadusama/ProjectsNonicloude/fate/fate_app_mtechub/vendor/bundle/ruby/2.6.0/gems/json-2.7.1/ext/json
+make "DESTDIR=" install
