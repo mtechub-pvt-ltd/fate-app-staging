@@ -29,7 +29,7 @@ jobs:
 
       # Install dependencies
       - name: Install Dependencies
-        run: npm install
+        run: npm install --global yarn && yarn install
 
       # Decode Keystore
       - name: Decode Keystore
