@@ -65,7 +65,7 @@ jobs:
       - name: Upload to Firebase
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
-          appId: fate-app-23e57  # Replace with your Firebase App ID
+          appId: 1:735734481931:android:c1e9576d92634a882cb30e  # Replace with your Firebase App ID
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           groups: fate-testers
           file: android/app/build/outputs/apk/play/release/app-play-release.apk
