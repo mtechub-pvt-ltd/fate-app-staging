@@ -27,6 +27,24 @@ jobs:
         with:
           node-version: 18
 
+      # Cache Node.js modules
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # Cache Gradle dependencies
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       # Install dependencies
       - name: Install Dependencies
         run: npm install --global yarn && yarn install
@@ -35,6 +53,7 @@ jobs:
       - name: Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/my-release-key.jks
+          ls -la android/app/my-release-key.jks
 
       # Build APK
       - name: Build APK
@@ -50,3 +69,4 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           groups: fate-testers
           file: android/app/build/outputs/apk/play/release/app-play-release.apk
+          releaseNotes: "Automated build and distribution from GitHub Actions."
