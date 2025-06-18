@@ -1,6 +1,4 @@
-import {SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,useColorScheme,View} from 'react-native'
-import COLOR from '../consts/colors'
-import { RFPercentage, RFValue } from "react-native-responsive-fontsize";
+import {StyleSheet} from 'react-native'
 
 const STYLES = StyleSheet.create({
     settingRipple:{

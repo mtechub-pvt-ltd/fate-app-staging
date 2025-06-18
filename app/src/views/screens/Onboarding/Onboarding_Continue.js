@@ -1,24 +1,16 @@
 import React, { useEffect } from 'react';
 import {
-  View,
   Text,
-  SafeAreaView,
   Animated,
   StyleSheet,
-  Image,
-  TouchableOpacity,
   ImageBackground,
   Platform,
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 import COLORS from '../../../consts/colors';
 import Images from '../../../consts/Images';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../HelperFunctions/AsyncStorage/userDetail';
-import GradientBackground from '../../../components/MainContainer/GradientBackground';
+import { getUserDetail } from '../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import fonts from '../../../consts/fonts';
-import Icon from 'react-native-vector-icons/FontAwesome5';
 import { height, width } from '../../../consts/Dimension';
 import PrimaryButton from '../../../components/Button/PrimaryButton';
 import TopBar from '../../../components/TopBar/TopBar';

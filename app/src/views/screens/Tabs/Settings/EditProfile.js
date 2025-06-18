@@ -1,56 +1,55 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   SafeAreaView,
-  FlatList,
   Animated,
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   ImageBackground,
   Platform,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
+  FlatList,
+  Linking
 } from 'react-native';
 
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import AntDesignIcon from 'react-native-vector-icons/AntDesign';
-import OcticonsIcon from 'react-native-vector-icons/Octicons';
 import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
 import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
-import LinearGradient from 'react-native-linear-gradient';
-import AppTextLogo from '../../../../components/AppLogo/AppTextLogo';
 import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
 import { updateUserProfileData, verifyPhotos } from '../../../../Services/Auth/SignupService';
-import RBSheet from 'react-native-raw-bottom-sheet';
-import { BlurView } from '@react-native-community/blur';
-import { SliderBox } from "react-native-image-slider-box";
 import { ScrollView } from 'react-native-gesture-handler';
-import { height } from '../../../../consts/Dimension';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { useIsFocused } from '@react-navigation/native';
+import FlashMessages from '../../../../components/FlashMessages/FlashMessages';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import Sound from 'react-native-sound';
 import {
   CloudArrowUp,
   Microphone
 } from 'phosphor-react-native';
+import { height, width } from '../../../../consts/Dimension';
+import SecondaryButton from '../../../../components/Button/SecondaryButton';
+import MiniAudioPlayer from '../../../../components/AudioPlayer/MiniAudioPlayer';
+import TrackPlayer from 'react-native-track-player';
+
 let soundInstance = null;
 function HomePage({ route, navigation }) {
   const isFocused = useIsFocused();
   const refBottomSheet = useRef(null);
   const refBottomSheet1 = useRef(null);
   const refRBSheet = useRef(null);
+  const refSpotifySheet = useRef(null);
+  const refInstagramSheet = useRef(null);
+  const refAudioPlayerSheet = useRef(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -58,8 +57,21 @@ function HomePage({ route, navigation }) {
   const animatedWidth = useRef(new Animated.Value(0)).current; // Progress bar animation value
   const intervalRef = useRef(null); // Interval reference
   const [soundPlayer, setSoundPlayer] = useState(null);
+  const [isSpotifyModalVisible, setSpotifyModalVisible] = useState(false);
+  const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
 
   const [profilePicture, setProfilePicture] = useState({ uri: '' });
+
+  // Flash message state
+  const [flashMessage, setFlashMessage] = useState(false);
+  const [flashMessageData, setFlashMessageData] = useState({
+    message: '',
+    description: '',
+    type: '',
+    icon: '',
+    backgroundColor: COLORS.red, // Default background color
+    textColor: COLORS.white, // Default text color
+  });
   const openGallery = async (type) => {
     try {
       launchImageLibrary(
@@ -71,7 +83,11 @@ function HomePage({ route, navigation }) {
           selectionLimit: 1, // Assuming you want to pick one image at a time
         },
         async response => {
-          refBottomSheet.current.close();
+          if (type === 'FOR_IMAGES') {
+            refBottomSheet1.current.close();
+          } else {
+            refBottomSheet.current.close();
+          }
           if (response.didCancel) {
             console.log('User cancelled image picker');
           } else if (response.errorCode) {
@@ -113,7 +129,7 @@ function HomePage({ route, navigation }) {
       console.error(err);
     }
   };
-  const openCamera = async () => {
+  const openCamera = async (type) => {
     try {
 
       await launchCamera(
@@ -125,7 +141,11 @@ function HomePage({ route, navigation }) {
           selectionLimit: 1, // Assuming you want to pick one image at a time
         },
         response => {
-          refBottomSheet.current.close();
+          if (type === 'FOR_IMAGES') {
+            refBottomSheet1.current.close();
+          } else {
+            refBottomSheet.current.close();
+          }
           console.log('Response = ', response);
           if (response.didCancel) {
             console.log('User cancelled image picker');
@@ -134,17 +154,24 @@ function HomePage({ route, navigation }) {
           } else if (response.errorMessage) {
             console.log('ImagePicker Error: ', response.errorMessage);
           } else {
-            // setProfilePicture({
-            //   uri: response.assets[0].uri,
-            // });
             setLoading(true);
-            Promise.all([uploadProfileImage(response.assets[0].uri)],
-              setUserData({ ...userData, profile_image: response.assets[0].uri })
-            ).then((x) => {
-              updateUserProfile(x[0], 'PROFILE');
-              setLoading(false);
-            }).catch((err) => { });
 
+            if (type === 'FOR_IMAGES') {
+              // Upload image for Pictures section
+              uploadImage(response.assets[0].uri).then((x) => {
+                console.log('image uploaded', x);
+                const newImages = [...userData.images, x];
+                updateUserProfile(newImages, 'IMAGES');
+              }).catch((err) => { });
+            } else {
+              // Upload image for Profile Picture section
+              Promise.all([uploadProfileImage(response.assets[0].uri)],
+                setUserData({ ...userData, profile_image: response.assets[0].uri })
+              ).then((x) => {
+                updateUserProfile(x[0], 'PROFILE');
+                setLoading(false);
+              }).catch((err) => { });
+            }
           }
         },
       );
@@ -153,33 +180,55 @@ function HomePage({ route, navigation }) {
     }
   };
 
-  const uploadProfileImage = async (img) => {
-
+  const uploadProfileImage = async (uri) => {
     const formData = new FormData();
     formData.append('file', {
-      uri: img,
+      uri: uri,
       type: 'image/jpeg',
-      name: 'profilePicture.jpg',
+      name: 'profile.jpg',
     });
-    formData.append('upload_preset', 'uheajywb');
 
+    // Comment out Cloudinary upload code
+    /*
+    formData.append('upload_preset', 'uheajywb');
     try {
       const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/image/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const uploadResult = await uploadResponse.json();
+      return uploadResult.secure_url;
+    } catch (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
+    */
+
+    // New upload implementation using custom backend API
+    try {
+      const uploadResponse = await fetch('https://backend.fatedating.com/upload-file', {
         method: 'POST',
         body: formData,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+
       const uploadResult = await uploadResponse.json();
-      return uploadResult.secure_url;
 
-
+      if (!uploadResult.error) {
+        console.log('Profile image uploaded successfully:', uploadResult.msg);
+        return uploadResult.data.fullUrl; // Return the URL of the uploaded image
+      } else {
+        console.error('Profile image upload error:', uploadResult);
+        return null; // Return null if upload failed
+      }
     } catch (error) {
-      console.error('Upload error:', error);
-      return ''; // Return empty string or handle error as needed
+      console.error('Profile image upload error:', error);
+      return null;
     }
   };
+
   const uploadImage = async (img) => {
 
     const formData = new FormData();
@@ -188,10 +237,12 @@ function HomePage({ route, navigation }) {
       type: 'image/jpeg',
       name: 'profilePicture.jpg',
     });
-    formData.append('upload_preset', 'uheajywb');
 
+    // Comment out Cloudinary upload code
+    /*
+    formData.append('upload_preset', 'mwawkvfq');
     try {
-      const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/image/upload', {
+      const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dfhk5givd/image/upload', { // Updated URL
         method: 'POST',
         body: formData,
         headers: {
@@ -200,15 +251,69 @@ function HomePage({ route, navigation }) {
       });
       const uploadResult = await uploadResponse.json();
       return uploadResult.secure_url;
-
-
     } catch (error) {
       console.error('Upload error:', error);
       return ''; // Return empty string or handle error as needed
     }
-  };
+    */
 
-  const updateUserProfile = async (img, imgType) => {
+    // New upload implementation using custom backend API
+    try {
+      const uploadResponse = await fetch('https://backend.fatedating.com/upload-file', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.error) {
+        console.log('Image uploaded successfully:', uploadResult.msg);
+        return uploadResult.data.fullUrl; // Return the URL of the uploaded image
+      } else {
+        console.error('Upload error:', uploadResult);
+        return ''; // Return empty string or handle error as needed
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      return ''; // Return empty string or handle error as needed
+    }
+  }; const updateUserProfile = async (img, imgType) => {
+    // Validate age before updating
+    const age = parseInt(userData.age);
+    if (userData.age && (age < 18 || age > 50)) {
+      if (age < 18) {
+        setFlashMessageData({
+          message: 'Age Validation Error',
+          description: 'Age must be at least 18 years old',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+      } else if (age > 50) {
+        setFlashMessageData({
+          message: 'Age Validation Error',
+          description: 'Age must be 50 years or younger',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+      }
+      return;
+    }
+
     setLoading(true);
     const data = {
 
@@ -224,6 +329,33 @@ function HomePage({ route, navigation }) {
       await storeUserDetail(response.user);
       getuserData();
 
+      // Show success message
+      setFlashMessageData({
+        message: 'Success',
+        description: 'Profile updated successfully',
+        type: 'success',
+        icon: 'success',
+        backgroundColor: COLORS.success,
+        textColor: COLORS.white,
+      });
+      setFlashMessage(true);
+      setTimeout(() => {
+        setFlashMessage(false);
+      }, 3000);
+    } else {
+      // Show error message if update fails
+      setFlashMessageData({
+        message: 'Error',
+        description: response?.msg || 'Failed to update profile',
+        type: 'info',
+        icon: 'info',
+        backgroundColor: COLORS.red,
+        textColor: COLORS.white,
+      });
+      setFlashMessage(true);
+      setTimeout(() => {
+        setFlashMessage(false);
+      }, 3000);
     }
 
   }
@@ -240,92 +372,53 @@ function HomePage({ route, navigation }) {
   }
 
 
-
-  // const playAudioFromURL = (audioURL) => {
-  //   console.log('audioURL', audioURL);
-
-  //   const soundInstance = new Sound(audioURL, '', (error) => {
-  //     if (error) {
-  //       console.log('Failed to load the sound', error);
-  //       return;
-  //     }
-  //     console.log('Sound loaded successfully');
-
-  //     // Play the sound and automatically handle stop when done
-  //     soundInstance.play((success) => {
-  //       if (success) {
-  //         console.log('Sound finished playing successfully');
-  //       } else {
-  //         console.log('Sound playback failed');
-  //       }
-  //       setIsPlaying(false); // Automatically set isPlaying to false when finished
-  //       soundInstance.release(); // Release the sound player to free up resources
-  //     });
-
-  //     setIsPlaying(true); // Set playing status
-  //     setSoundPlayer(soundInstance); // Store the sound instance for future use
-  //   });
-  // };
-
   const playAudioFromURL = (audioURL) => {
     console.log('Audio URL:', audioURL);
 
-    const soundInstance = new Sound(audioURL, '', (error) => {
+    // Force a fresh instance each time by adding a unique query or destroying previous
+    if (soundPlayer) {
+      soundPlayer.stop(() => {
+        soundPlayer.release();
+      });
+    }
+
+    const cacheBusterUrl = `${audioURL}?t=${Date.now()}`; // 💥 Force reload
+
+    const newSound = new Sound(cacheBusterUrl, '', (error) => {
       if (error) {
-        console.log('Failed to load the sound:', error);
+        console.log('Failed to load sound:', error);
         return;
       }
 
       console.log('Sound loaded successfully');
-      const totalDuration = soundInstance.getDuration(); // Get total duration
-      console.log('Total duration:', totalDuration);
+      const totalDuration = newSound.getDuration();
       setDuration(totalDuration);
-      setSoundPlayer(soundInstance);
-
-      // Reset progress bar
+      setSoundPlayer(newSound);
       animatedWidth.setValue(0);
 
-      // Start playing audio
-      soundInstance.play((success) => {
+      newSound.play((success) => {
         if (success) {
           console.log('Playback finished successfully');
         } else {
           console.log('Playback failed');
         }
         setIsPlaying(false);
-        clearInterval(intervalRef.current); // Clear interval on completion
-        animatedWidth.setValue(0); // Reset progress bar
+        clearInterval(intervalRef.current);
+        animatedWidth.setValue(0);
       });
 
-      setIsPlaying(true); // Set playback state
+      setIsPlaying(true);
 
-      // Start interval to update the progress bar
       intervalRef.current = setInterval(() => {
-        soundInstance.getCurrentTime((currentTime) => {
-          console.log('Current time:', currentTime);
-          if (currentTime !== undefined && totalDuration > 0) {
-            const progress = (currentTime / totalDuration) * 100; // Calculate progress percentage
-            animatedWidth.setValue(progress); // Update the progress bar
+        newSound.getCurrentTime((currentTime) => {
+          if (currentTime && totalDuration > 0) {
+            const progress = (currentTime / totalDuration) * 100;
+            animatedWidth.setValue(progress);
           }
         });
-      }, 100); // Update every 100ms for smoother progress
+      }, 100);
     });
   };
-
-
-
-
-
-  // const stopAudio = () => {
-  //   if (isPlaying) {
-  //     soundPlayer.stop(() => {
-  //       soundPlayer.release();
-  //       console.log('Sound stopped');
-  //     });
-  //     setIsPlaying(false);
-  //   }
-  // };
-
 
   const stopAudio = () => {
     if (isPlaying && soundPlayer) {
@@ -362,12 +455,99 @@ function HomePage({ route, navigation }) {
 
   }
 
+  const handleConnectSpotify = () => {
+    refSpotifySheet.current.open();
+  };
+
+  const confirmConnectSpotify = () => {
+    refSpotifySheet.current.close();
+    // Navigate to Test screen with parameter to auto-login
+    navigation.navigate('ConnectSpotify', { autoLogin: true });
+  };
+
+  const cancelConnectSpotify = () => {
+    refSpotifySheet.current.close();
+  };
+
+  const handleConnectInstagram = () => {
+    refInstagramSheet.current.open();
+  };
+
+  const confirmConnectInstagram = () => {
+    refInstagramSheet.current.close();
+    // Navigate to Instagram connection screen
+    navigation.navigate('TestInstagramNew', { autoLogin: true });
+  };
+
+  const cancelConnectInstagram = () => {
+    refInstagramSheet.current.close();
+  };
+
+  // useEffect(() => {
+  //   getuserData();
+  // }, [isFocused]);
+
+
+  useFocusEffect(
+    useCallback(() => {
+      // Runs every time the screen comes into focus
+      console.log('Screen is focused');
+      getuserData();
+
+      return () => {
+        // Optional: clean-up when leaving the screen
+
+        console.log('Screen is unfocused');
+        stopAudio(); // Stop audio when the screen is unfocused
+        TrackPlayer.reset(); // Reset the player when leaving the screen
+      };
+    }, [])
+  );
+
   useEffect(() => {
-    getuserData();
-  }, [isFocused]);
+    if (userData?.note) {
+      console.log("New audio URL received", userData?.note);
+      stopAudio(); // ensure cleanup
+
+    }
+  }, [userData?.note]);
+
+  const playAudioInBottomSheet = () => {
+    if (userData?.note) {
+      // Stop any currently playing audio
+      stopAudio();
+      // Set auto-play to true so audio starts playing immediately when sheet opens
+      setShouldAutoPlay(true);
+      // Open the bottom sheet to play the audio
+      refAudioPlayerSheet.current.open();
+    } else {
+      alert('No voice note available');
+    }
+  };
+
+  // Enhanced cleanup for the component
+  useEffect(() => {
+    return () => {
+      // Ensure audio and bottom sheet are properly cleaned up
+      stopAudio();
+      if (refAudioPlayerSheet.current) {
+        refAudioPlayerSheet.current.close();
+      }
+    };
+  }, []);
+
+  // Enhanced handler for audio player sheet close
+  const handleAudioPlayerSheetClose = () => {
+    // Reset the autoPlay flag
+    setShouldAutoPlay(false);
+
+
+    stopAudio();
+  };
 
   return (
     <GradientBackground>
+      {flashMessage && <FlashMessages flashMessageData={flashMessageData} />}
       <ActivityIndicator animating={loading} size="large"
         color={COLORS.white}
         style={{
@@ -387,7 +567,7 @@ function HomePage({ route, navigation }) {
             marginTop: responsiveHeight(1),
           }}
         >
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={{
               padding: responsiveHeight(1),
             }}
@@ -396,12 +576,12 @@ function HomePage({ route, navigation }) {
             }}
           >
             <Icon name="times" size={responsiveFontSize(3)} color={COLORS.white} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={() => {
             openCamera();
-            // refBottomSheet.current.close();
+
           }}
           style={{
             borderBottomWidth: 1,
@@ -420,8 +600,8 @@ function HomePage({ route, navigation }) {
             }}>
             Take a Photo
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </TouchableOpacity> */}
+        {/* <TouchableOpacity
           style={{
             flexDirection: 'row',
             padding: responsiveHeight(2),
@@ -440,7 +620,7 @@ function HomePage({ route, navigation }) {
             }}>
             Choose a photo
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </BottomSheet>
       <BottomSheet height={responsiveHeight(25)} ref={refBottomSheet1}>
         <View
@@ -452,7 +632,7 @@ function HomePage({ route, navigation }) {
           }}
         >
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={{
               padding: responsiveHeight(1),
             }}
@@ -461,12 +641,12 @@ function HomePage({ route, navigation }) {
             }}
           >
             <Icon name="times" size={responsiveFontSize(3)} color={COLORS.white} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={() => {
-            openCamera();
-            // refBottomSheet.current.close();
+            openCamera('FOR_IMAGES');
+
           }}
           style={{
             borderBottomWidth: 1,
@@ -485,8 +665,8 @@ function HomePage({ route, navigation }) {
             }}>
             Take a Photo
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </TouchableOpacity> */}
+        {/* <TouchableOpacity
           style={{
             flexDirection: 'row',
             padding: responsiveHeight(2),
@@ -494,7 +674,7 @@ function HomePage({ route, navigation }) {
             alignItems: 'center',
           }}
           onPress={() => {
-            openGallery();
+            openGallery('FOR_IMAGES');
           }}>
           <Icon name="image" size={responsiveFontSize(3)} color={'#8C52FF'} />
           <Text
@@ -505,9 +685,9 @@ function HomePage({ route, navigation }) {
             }}>
             Choose a photo
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </BottomSheet>
-      <BottomSheet ref={refRBSheet}>
+      <BottomSheet height={responsiveHeight(45)} ref={refRBSheet}>
         <View
           style={{
             marginTop: responsiveHeight(3),
@@ -538,7 +718,7 @@ function HomePage({ route, navigation }) {
                 refRBSheet.current.close();
               }}
               style={{
-                // marginTop: responsiveHeight(5),
+
                 alignSelf: 'center',
                 width: responsiveWidth(30),
                 backgroundColor: COLORS.primary,
@@ -551,15 +731,101 @@ function HomePage({ route, navigation }) {
                 handleVerifyPhotos();
               }}
               style={{
-                // marginTop: responsiveHeight(5),
+
                 alignSelf: 'center',
                 width: responsiveWidth(30),
                 padding: 0,
+
               }}
               loading={loading}
             />
           </View>
         </View>
+      </BottomSheet>
+      <BottomSheet
+        height={responsiveHeight(45)}
+        ref={refSpotifySheet}>
+
+        <View style={styles.sheetContent}>
+          <Image source={Images.spotify_logo} style={{ width: 50, height: 50, alignSelf: 'center' }} />
+          <Text style={styles.sheetTitle}>
+
+            Connect Spotify</Text>
+          <Text style={styles.sheetMessage}>
+            By connecting Spotify, you authorize us to store your Spotify information and also you will be able to see your favorite listings if you have one.
+
+            Are you sure you want to continue?
+          </Text>
+          <View style={styles.sheetButtons}>
+            <PrimaryButton
+              title="Confirm"
+              backgroundColor={COLORS.primary}
+              onPress={confirmConnectSpotify}
+              style={styles.sheetButton}
+            />
+            <PrimaryButton
+              backgroundColor={COLORS.danger}
+              title="Cancel"
+              onPress={cancelConnectSpotify}
+              style={styles.sheetButton}
+            />
+
+          </View>
+        </View>
+      </BottomSheet>
+      <BottomSheet
+        height={responsiveHeight(55)}
+        ref={refInstagramSheet}>
+        <View style={styles.sheetContent}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              alignContent: 'center',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Image source={Images.insta_logo} style={{ width: 50, height: 50, alignSelf: 'center', tintColor: COLORS.white }} />
+            <Text style={[styles.sheetTitle, {
+              marginTop: responsiveHeight(2),
+            }]}>
+              Connect Instagram
+            </Text>
+            <Text style={styles.sheetMessage}>
+              Connect Instagram to allow photo access (for Business/Professional accounts) and authorize data storage.
+
+              <Text style={{ color: COLORS.danger }}>
+                If you&apos;re connecting a private Instagram account, you may encounter errors accessing content. Please switch to a public account to avoid any issues.
+              </Text>
+
+              Are you sure you want to continue?
+            </Text>
+          </ScrollView>
+          <View style={styles.sheetButtons}>
+            <PrimaryButton
+              title="Confirm"
+              backgroundColor={COLORS.primary}
+              onPress={confirmConnectInstagram}
+              style={styles.sheetButton}
+            />
+            <PrimaryButton
+              backgroundColor={COLORS.danger}
+              title="Cancel"
+              onPress={cancelConnectInstagram}
+              style={styles.sheetButton}
+            />
+          </View>
+        </View>
+      </BottomSheet>
+      <BottomSheet
+        height={responsiveHeight(35)}
+        ref={refAudioPlayerSheet}
+        onClose={handleAudioPlayerSheetClose}>
+        {userData?.note && <MiniAudioPlayer
+          audioUrl={userData.note}
+          onClose={() => refAudioPlayerSheet.current.close()}
+          autoPlay={shouldAutoPlay}
+        />}
       </BottomSheet>
       <SafeAreaView
         style={{
@@ -572,42 +838,45 @@ function HomePage({ route, navigation }) {
           keyboardVerticalOffset={Platform.OS === 'ios' ? 5 : 0}
         >
           <View style={{ flex: 1 }}>
-            <ScrollView>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'flex-start',
-                  width: responsiveWidth(90),
-                  marginTop: Platform.OS === 'ios' ? responsiveHeight(0) : responsiveHeight(2),
-                  alignItems: 'center',
-                  paddingHorizontal: responsiveWidth(2),
-                  paddingVertical: responsiveHeight(2),
-                }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    stopAudio();
-                    navigation.goBack();
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'flex-start',
+                width: responsiveWidth(90),
+                marginTop: Platform.OS === 'ios' ? responsiveHeight(0) : responsiveHeight(2),
+                alignItems: 'center',
+                // paddingHorizontal: responsiveWidth(2),
+                paddingVertical: responsiveHeight(1),
+              }}>
+              {/* <TouchableOpacity
+                onPress={() => {
+                  stopAudio();
+                  navigation.goBack();
 
-                  }}
-                >
-                  <Icon name="chevron-left"
-                    style={{
-                      marginRight: responsiveWidth(2),
-                      padding: responsiveWidth(2),
-                    }}
-                    size={responsiveFontSize(3)} color={COLORS.white} />
-                </TouchableOpacity>
-                <Text
+                }}
+              >
+                <Icon name="chevron-left"
                   style={{
-                    color: COLORS.white,
-                    fontSize: responsiveFontSize(2.5),
-                    fontFamily: fonts.PoppinsMedium,
-                  }}>
-                  {'  '}Edit Profile
-                </Text>
+                    marginRight: responsiveWidth(2),
+                    padding: responsiveWidth(2),
+                  }}
+                  size={responsiveFontSize(3)} color={COLORS.white} />
+              </TouchableOpacity> */}
+              <Text
+                style={{
+                  color: COLORS.white,
+                  fontSize: responsiveFontSize(2.5),
+                  fontFamily: fonts.PoppinsMedium,
+                }}>
+                {'  '}Edit Profile
+              </Text>
 
 
-              </View>
+            </View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+            >
+
               <Text
                 style={{
                   color: COLORS.white,
@@ -649,7 +918,7 @@ function HomePage({ route, navigation }) {
                   <Icon name="camera" size={responsiveFontSize(3)} color={COLORS.white} />
 
                 </ImageBackground>
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   style={{
                     padding: responsiveWidth(1),
                     borderRadius: 30,
@@ -679,7 +948,7 @@ function HomePage({ route, navigation }) {
                   >
                     {' '}Upload New
                   </Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
               </View>
               <Text
@@ -696,15 +965,14 @@ function HomePage({ route, navigation }) {
 
               <View
                 style={{
-                  backgroundColor: '#FFFFFF14',
+
                   padding: responsiveWidth(2),
                   borderRadius: 10,
+                  paddingHorizontal: responsiveWidth(2),
+
                 }}
               >
                 <CustomInput
-                  mainContainerStyle={{
-                    // marginTop: responsiveHeight(2),
-                  }}
                   title="Full Name"
                   autoCapitalize="none"
                   secureTextEntry={false}
@@ -713,24 +981,64 @@ function HomePage({ route, navigation }) {
                   }}
                   value={userData?.name}
                   leftIcon={true}
-                  // leftIconName={'eye-slash'}
+
                   leftIconPress={() => {
                     console.log('eye-slash');
                   }}
-                />
-                <CustomInput
+                />                <CustomInput
                   mainContainerStyle={{
                     marginTop: responsiveHeight(2),
                   }}
                   title="Age"
                   secureTextEntry={false}
+                  keyboardType="numeric"
                   onChangeText={text => {
-                    setUserData({ ...userData, age: text });
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setUserData({ ...userData, age: numericText });
                   }}
 
                   value={userData?.age?.toString()}
 
                 />
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: responsiveHeight(2) }}>
+                  <Text style={{ color: COLORS.white, fontSize: responsiveFontSize(1.8), fontFamily: fonts.PoppinsRegular, marginBottom: responsiveHeight(1) }}>Bio</Text>
+                  {/* <TouchableOpacity
+                    style={{
+                      backgroundColor: 'rgba(105, 61, 191, 1)',
+                      borderRadius: 10,
+                      paddingHorizontal: responsiveWidth(3),
+                      paddingVertical: responsiveWidth(1.5),
+                    }}
+                    onPress={() => {
+                      navigation.navigate('OnboardingVoiceNotesIOSUpdate', {
+                        showBack: true,
+                        bio_notes: userData?.bio_notes,
+                        cloudinary_note: userData?.note,
+                      });
+
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: COLORS.white,
+                        fontSize: responsiveFontSize(1.5),
+                        fontFamily: fonts.PoppinsMedium,
+                      }}>
+                      Edit
+                    </Text>
+                  </TouchableOpacity> */}
+                </View>
+                <CustomInput
+
+
+                  secureTextEntry={false}
+                  readOnly={true}
+                  value={userData?.bio_notes}
+                  placeholder="Tell us about yourself..."
+                  placeholderTextColor={COLORS.gray}
+                />
+
                 <CustomInput
                   mainContainerStyle={{
                     marginTop: responsiveHeight(2),
@@ -745,26 +1053,7 @@ function HomePage({ route, navigation }) {
                   value={userData?.email}
                   readOnly={true}
                 />
-                {/* <CustomInput
-              mainContainerStyle={{
-                marginTop: responsiveHeight(2),
 
-              }}
-              title="Bio"
-              autoCapitalize="none"
-              secureTextEntry={false}
-              onChangeText={text => {
-                setUserData({ ...userData, note: text });
-              }}
-              multiline={true}
-              numberOfLines={4}
-              value={userData?.note}
-              leftIcon={true}
-              // leftIconName={'eye-slash'}
-              leftIconPress={() => {
-                console.log('eye-slash');
-              }}
-            /> */}
 
               </View>
               <View
@@ -785,7 +1074,7 @@ function HomePage({ route, navigation }) {
                   }}>
                   Pictures
                 </Text>
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   style={{
                     backgroundColor:
                       userData?.isVerifiedUser == false ?
@@ -811,7 +1100,7 @@ function HomePage({ route, navigation }) {
                       userData?.isVerifiedUser == 1 ? 'Account Verified' : 'Verify Photos'
                     }
                   </Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
               <View
                 style={{
@@ -850,7 +1139,7 @@ function HomePage({ route, navigation }) {
                           }}
                         >
 
-                          <TouchableOpacity
+                          {/* <TouchableOpacity
                             onPress={() => {
                               deleteUserImage(item);
                             }}
@@ -865,15 +1154,15 @@ function HomePage({ route, navigation }) {
                             }}
                           >
                             <Icon name="times" size={responsiveFontSize(2)} color={COLORS.white} />
-                          </TouchableOpacity>
+                          </TouchableOpacity> */}
                         </ImageBackground>
                       );
                     }
                     )
                   }
-                  <TouchableOpacity
+                  {/* <TouchableOpacity
                     onPress={() => {
-                      openGallery('FOR_IMAGES');
+                      refBottomSheet1.current.open();
                     }}
                   >
 
@@ -902,11 +1191,12 @@ function HomePage({ route, navigation }) {
 
                     </ImageBackground>
 
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                 </View>
 
 
               </View>
+
               <Text
                 style={{
                   color: COLORS.white,
@@ -925,109 +1215,38 @@ function HomePage({ route, navigation }) {
                   backgroundColor: '#FFFFFF14',
                   borderRadius: 15,
                   paddingHorizontal: responsiveWidth(2),
-                  marginBottom: responsiveHeight(12),
                   width: responsiveWidth(90),
                   alignSelf: 'center',
                 }}
               >
-
-                {/* <View
-                  style={{
-                    // flexDirection: 'row',
-                    // justifyContent: 'space-between',
-                    flexDirection: 'column-reverse',
-                    alignItems: 'center',
-                    marginVertical: responsiveHeight(2),
-                  }}
-                >
-                  <TouchableOpacity
-                    style={{
-                      backgroundColor: COLORS.white,
-                      borderRadius: 50,
-                      borderWidth: 1,
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                      // marginLeft: responsiveWidth(11),
-                    }}
-                    onPress={() => {
-                      isPlaying ? stopAudio() :
-                        playAudioFromURL(userData?.note);
-                    }}
-                  >
-                    <Icon
-                      name={isPlaying ? 'pause' : 'play'}
-                      size={responsiveFontSize(3)}
-                      color={'rgba(105, 61, 191, 1)'}
-                      style={{
-                        padding: responsiveWidth(3),
-                        paddingHorizontal: responsiveWidth(3.5),
-                        alignSelf: 'center',
-                      }}
-                    />
-                  </TouchableOpacity>
-
-                  <Image
-                    source={Images.voice_animation}
-                    style={{
-                      width: responsiveWidth(75),
-                      height: responsiveHeight(5),
-                      resizeMode: 'contain',
-                      alignSelf: 'center',
-                      display: isPlaying ? 'flex' : 'none'
-                    }}
+                {userData?.note ? (
+                  <MiniAudioPlayer
+                    audioUrl={userData.note}
+                    autoPlay={false}
+                    onClose={() => { }}
                   />
-
-                </View> */}
-                <View style={styles.voiceNoteContainer}>
-                  <TouchableOpacity
-                    style={styles.playButton}
-                    onPress={() => {
-                      isPlaying ? stopAudio() : playAudioFromURL(userData?.note);
-                    }}
-                  >
-                    <Icon
-                      name={isPlaying ? 'pause' : 'play'}
-                      size={responsiveFontSize(2)}
-                      color={COLORS.primary}
-                    />
-                  </TouchableOpacity>
-
-                  {/* Progress Bar */}
-                  <View
-                    style={{
-                      width: '80%', // Adjust the width as needed
-                      alignSelf: 'center',
-                      marginVertical: responsiveHeight(1),
-                    }}
-                  >
-                    {/* Background Bar */}
-                    <View
+                ) : (
+                  <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                    <Image
+                      source={Images.alert_purple}
                       style={{
-                        width: '100%',
-                        height: responsiveHeight(1),
-                        backgroundColor: '#ccc', // Grey background
-                        borderRadius: 5,
-                        overflow: 'hidden', // Ensure the progress bar stays inside
+                        width: 50,
+                        height: 50,
+                        alignSelf: 'center',
+                        marginVertical: 10,
                       }}
-                    >
-                      {/* Animated Progress Bar */}
-                      <Animated.View
-                        style={{
-                          width: animatedWidth.interpolate({
-                            inputRange: [0, 100],
-                            outputRange: ['0%', '100%'], // Expand from left to right
-                          }),
-                          height: '100%',
-                          backgroundColor: COLORS.primary, // Primary progress bar color
-                        }}
-                      />
-                    </View>
+                    />
+                    <Text
+                      style={{
+                        color: COLORS.white,
+                        fontSize: responsiveFontSize(1.5),
+                        fontFamily: fonts.PoppinsMedium,
+                        textAlign: 'center',
+                      }}>
+                      No voice note found
+                    </Text>
                   </View>
-
-
-
-
-                </View>
-
+                )}
                 <View
                   style={{
                     flexDirection: 'row',
@@ -1037,7 +1256,7 @@ function HomePage({ route, navigation }) {
                     width: responsiveWidth(90),
                   }}
                 >
-                  <TouchableOpacity
+                  {/* <TouchableOpacity
                     style={{
                       padding: responsiveWidth(1.4),
                       borderRadius: 30,
@@ -1045,23 +1264,20 @@ function HomePage({ route, navigation }) {
                       width: responsiveWidth(80),
                       alignSelf: 'center',
                       borderColor: 'white',
-                      // marginTop: responsiveHeight(1),
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                     onPress={() => {
-                      Platform.OS === 'ios' ?
-                        navigation.navigate('OnboardingVoiceNotesIOS', {
-                          showBack: true
-                        }) :
-                        navigation.navigate('OnboardingVoiceNotes', {
-                          showBack: true
-                        });
+                      navigation.navigate('OnboardingVoiceNotesIOSUpdate', {
+                        showBack: true,
+                        bio_notes: userData?.bio_notes,
+                        cloudinary_note: userData?.note,
+                      });
+
                     }}
                   >
-                    <Microphone color={COLORS.white}
-                      weight='light' size={20} />
+                    <Microphone color={COLORS.white} weight='light' size={20} />
                     <Text
                       style={{
                         color: COLORS.white,
@@ -1070,20 +1286,309 @@ function HomePage({ route, navigation }) {
                         textAlign: 'center',
                       }}
                     >
-                      Record again
+                      {userData?.note ? 'Record again' : 'Record Voice Note'}
                     </Text>
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                 </View>
-
-
               </View>
+
+              <Text
+                style={{
+                  color: COLORS.white,
+                  fontSize: responsiveFontSize(2.2),
+                  fontFamily: fonts.PoppinsMedium,
+                  display: 'none',
+                  marginHorizontal: responsiveWidth(2),
+                  marginVertical: responsiveWidth(3),
+
+                }}>
+                Socials
+              </Text>
+              {
+
+                userData?.spotify_data ?
+                  <FlatList
+                    horizontal
+                    data={userData?.spotify_data}
+                    keyExtractor={(item) => item.track.id}
+                    renderItem={({ item }) => (
+                      <></>
+                      // <TouchableOpacity
+
+
+                      //   onPress={() => {
+                      //     const spotifyUrl = item?.track?.external_urls?.spotify;
+                      //     Linking.openURL(spotifyUrl).catch(err => console.error("Couldn't load page", err));
+                      //   }}
+                      //   style={{
+                      //     flexDirection: 'row',
+                      //     alignItems: 'center',
+                      //     backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      //     borderRadius: 15,
+                      //     padding: 10,
+                      //     marginVertical: 5,
+                      //     marginHorizontal: 10,
+                      //     borderWidth: 1,
+                      //     borderColor: 'rgba(221, 221, 225, 0.16)'
+
+                      //   }}
+                      // >
+
+                      //   <View
+                      //     style={{
+                      //       width: 50,
+                      //       height: 50,
+                      //       borderRadius: 10,
+                      //       overflow: 'hidden',
+                      //       marginRight: 10,
+                      //     }}
+                      //   >
+                      //     <Image
+                      //       source={{ uri: item.track.album.images[0].url }}
+                      //       style={{ width: '100%', height: '100%' }}
+                      //     />
+                      //   </View>
+
+                      //   {/* Track Details */}
+                      //   <View style={{ flex: 1 }}>
+                      //     <Text
+                      //       style={{
+                      //         fontSize: 16,
+                      //         fontWeight: 'bold',
+                      //         color: 'white',
+                      //       }}
+                      //     >
+                      //       {item.track.name} - {item.track.artists[0].name}
+                      //     </Text>
+                      //     <View
+                      //       style={{
+                      //         flexDirection: 'row',
+                      //         marginTop: 5,
+                      //         alignContent: 'center',
+                      //         alignItems: 'center',
+                      //       }}
+                      //     >
+                      //       <Image
+                      //         source={Images.spotify_logo2}
+                      //         style={{
+                      //           width: 20, height: 20,
+                      //           backgroundColor: 'white',
+                      //           borderRadius: 50,
+                      //         }}
+                      //       />
+                      //       <Text
+                      //         style={{
+                      //           fontSize: 12,
+                      //           color: 'white',
+                      //           marginLeft: 5,
+                      //         }}
+                      //       >
+                      //         Spotify, Favorite Song
+                      //       </Text>
+                      //     </View>
+                      //   </View>
+                      // </TouchableOpacity>
+                    )}
+                    style={{
+                      width: '100%',
+                      paddingVertical: 5,
+                    }}
+                  /> :
+                  <View
+                    style={{
+                      alignSelf: 'center',
+                      display: 'none',
+                    }}
+                  >
+                    <SecondaryButton
+                      loading={loading}
+                      title={'Connect Spotify'}
+                      image={Images.spotify_logo}
+                      onPress={handleConnectSpotify}
+                    />
+                  </View>
+              }
+
+
+              {
+
+                userData?.instagram_data ?
+
+
+                  <View
+                    style={{
+
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(221, 221, 225, 0.16)',
+                      width: '95%',
+                      marginLeft: 10,
+                      paddingVertical: 5,
+                      paddingHorizontal: 10,
+
+                      borderRadius: 15,
+                    }}>
+                    {/* <TouchableOpacity
+                      onPress={() => {
+                        Linking.openURL(`https://www.instagram.com/${userData?.instagram_data?.profile?.username}`);
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        width: '100%',
+                      }}
+                    >
+                      <Image
+                        source={{ uri: userData?.instagram_data?.profile?.profile_picture_url }}
+                        style={{
+                          width: 50,
+                          height: 50,
+                          borderRadius: 10,
+                          alignSelf: 'center',
+                          marginVertical: 10,
+                        }}
+                      />
+                      <View
+                        style={{
+                          marginLeft: 10,
+
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: responsiveFontSize(2.5),
+                            color: COLORS.white,
+                            fontFamily: fonts.PoppinsMedium,
+                          }}
+                        >
+                          {userData?.instagram_data?.profile?.username}
+                        </Text>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                          }}
+                        >
+                          <Image
+                            source={Images.insta_logo}
+                            style={{
+                              width: 20, height: 20,
+                              backgroundColor: 'white',
+                              borderRadius: 50,
+                            }}
+                          />
+                          <Text
+                            style={{
+                              color: COLORS.white,
+                              fontFamily: fonts.PoppinsMedium,
+                              marginLeft: 5,
+                            }}
+                          >
+
+                            @{userData?.instagram_data?.profile?.username}
+                          </Text>
+                        </View>
+
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          position: 'absolute',
+                          right: 5,
+                          width: responsiveWidth(15),
+
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: COLORS.white,
+                            fontFamily: fonts.PoppinsMedium,
+                            fontSize: responsiveFontSize(2),
+                            marginRight: 5,
+                          }}
+                        >
+                          Vist
+                        </Text>
+                        <Icon
+                          name="chevron-right"
+                          size={20}
+                          color={COLORS.white}
+
+                        />
+                      </View>
+
+                    </TouchableOpacity> */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        width: '100%',
+                        flexWrap: 'wrap',
+                        justifyContent: 'space-between',
+
+                      }}
+                    >
+                      <FlatList
+                        horizontal
+                        data={userData?.instagram_data?.media.reverse()}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item }) => (
+                          <View
+                            style={{
+                              width: 60,
+                              display:
+                                item.media_type === 'IMAGE' ? 'flex' : 'none',
+                              marginRight: 10,
+                            }}
+                          >
+
+                            <Image
+                              source={{ uri: item.media_url }}
+                              style={{
+                                width: '100%',
+                                height: 60,
+                                borderRadius: 10,
+                                marginVertical: 10,
+                              }}
+                            />
+                          </View>
+                        )}
+                      />
+                    </View>
+                  </View>
+                  :
+                  <View
+                    style={{
+                      alignSelf: 'center',
+                      display: 'none',
+                    }}
+                  >
+                    <SecondaryButton
+                      loading={loading}
+                      title="Connect Instagram"
+                      image={Images.insta_logo}
+                      imageStyle={{
+                        tintColor: COLORS.white,
+                      }}
+                      onPress={handleConnectInstagram}
+                    />
+                  </View>
+              }
+
+
+              <View
+                style={{
+                  marginBottom: responsiveHeight(10),
+                }}
+              ></View>
+
+
 
 
             </ScrollView>
 
             <View
               style={{
-                paddingTop: responsiveHeight(2),
+                paddingVertical: responsiveHeight(1),
                 backgroundColor: 'transparent',
                 justifyContent: 'space-evenly',
 
@@ -1144,9 +1649,70 @@ const styles = StyleSheet.create({
   },
   progressBar: (isPlaying) => ({
     height: responsiveHeight(1),
-    backgroundColor: isPlaying ? COLORS.primary : COLORS.gray, // Pink when playing, gray otherwise
+    backgroundColor: isPlaying ? COLORS.primary : COLORS.gray,
     borderRadius: 5,
     flex: 1,
   }),
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: responsiveWidth(80),
+    padding: responsiveWidth(5),
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: responsiveFontSize(2.5),
+    fontFamily: fonts.PoppinsMedium,
+    color: COLORS.primary,
+    marginBottom: responsiveHeight(2),
+  },
+  modalMessage: {
+    fontSize: responsiveFontSize(2),
+    fontFamily: fonts.PoppinsRegular,
+    color: COLORS.black,
+    textAlign: 'center',
+    marginBottom: responsiveHeight(2),
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    width: '45%',
+  },
+  sheetContent: {
+    padding: responsiveWidth(5),
+    alignItems: 'center',
+  },
+  sheetTitle: {
+    fontSize: responsiveFontSize(2.5),
+    fontFamily: fonts.PoppinsMedium,
+    color: COLORS.white,
+    marginBottom: responsiveHeight(2),
+  },
+  sheetMessage: {
+    fontSize: responsiveFontSize(2),
+    fontFamily: fonts.PoppinsRegular,
+    color: COLORS.grey,
+    textAlign: 'center',
+    marginBottom: responsiveHeight(2),
+  },
+  sheetButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    width: '100%',
+    paddingTop: responsiveHeight(2),
+  },
+  sheetButton: {
+    width: '42%',
+    padding: 0,
+  },
 });
 export default HomePage;

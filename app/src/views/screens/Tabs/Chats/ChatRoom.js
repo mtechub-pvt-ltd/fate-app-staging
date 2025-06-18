@@ -8,13 +8,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import io from 'socket.io-client';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
-import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import { width } from '../../../../consts/Dimension';
 import COLORS from '../../../../consts/colors';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import Images from '../../../../consts/Images';
 import fonts from '../../../../consts/fonts';
 function ChatScreen({ route, navigation }) {
   const { currentUser, otherUser, otherUserName, otherUserImage } = route.params; // Passed as navigation parameters

@@ -1,4 +1,4 @@
-import {StyleSheet, Image, Text, View} from 'react-native';
+import {StyleSheet, Image} from 'react-native';
 import React from 'react';
 // import { Image } from 'moti';
 import Images from '../../consts/Images';

@@ -8,7 +8,6 @@ import {
 } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import { StoryContainer } from 'react-native-stories-view';
 import COLORS from '../../../../consts/colors';
 import { responsiveFontSize, responsiveHeight, responsiveWidth } from 'react-native-responsive-dimensions';
 import fonts from '../../../../consts/fonts';

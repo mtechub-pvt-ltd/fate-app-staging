@@ -4,9 +4,6 @@ import {
   Text,
   View,
   TouchableOpacity,
-  Keyboard,
-  TextInput,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -22,15 +19,18 @@ import fonts from '../../../../consts/fonts';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FlashMessages from '../../../../components/FlashMessages/FlashMessages';
-import {
-  Horse, Heart, Cube,
-  Eye, EyeSlash,
-  SkipForward, SkipBackward,
-} from 'phosphor-react-native';
 import CustomInput from '../../../../components/CustomInput/CustomInput';
+import { useDispatch, useSelector } from 'react-redux';
+import { setQuestions, setQuestionAnswer } from '../../../../redux/features/form/formSlice';
+
 
 
 const VoiceTest = ({ navigation }) => {
+  // redux : 
+
+  const dispatch = useDispatch();
+  const questions = useSelector((state) => state.form.questions);
+
   const refInput = useRef();
   const [state, setState] = useState({
     recognized: '',
@@ -118,52 +118,110 @@ const VoiceTest = ({ navigation }) => {
     }
   };
 
+  // const callQuestions = async () => {
+  //   try {
+  //     const response = await getAllQuestions();
+  //     setList(response?.data);
+  //   } catch (error) {
+  //     console.error('This is the error:', error);
+  //   }
+  // };
+
   const callQuestions = async () => {
     try {
       const response = await getAllQuestions();
-      setList(response?.data);
+      // Merge existing answers with new questions
+      const questionsWithAnswers = response?.data?.map(newQuestion => {
+        const existingQuestion = questions?.find(q => q?.id === newQuestion.id);
+        return {
+          ...newQuestion,
+          answer: existingQuestion?.answer || ''
+        };
+      });
+      dispatch(setQuestions(questionsWithAnswers)); // Dispatch merged questions to Redux
     } catch (error) {
       console.error('This is the error:', error);
     }
   };
 
-  const addAnswer = async () => {
-    try {
-      const value = await AsyncStorage.getItem('userDetail');
-      const userDetail = JSON.parse(value);
-      const question = list[activeIndex];
-      const data = {
-        user_id: userDetail.id,
-        question_id: question.id,
-        answer: voiceText,
-      };
-      const response = await addAnswertoQuestion(data);
+  // const addAnswer = async () => {
+  //   try {
+  //     const value = await AsyncStorage.getItem('userDetail');
+  //     const userDetail = JSON.parse(value);
+  //     const question = list[activeIndex];
+  //     const data = {
+  //       user_id: userDetail.id,
+  //       question_id: question.id,
+  //       answer: voiceText,
+  //     };
+  //     const response = await addAnswertoQuestion(data);
 
-      if (activeIndex < list.length - 1) {
-        setActiveIndex(activeIndex + 1);
-        setVoiceText('');
-        setState((prevState) => ({ ...prevState, results: '' }));
-        setLoading(false);
+  //     if (activeIndex < list.length - 1) {
+  //       setActiveIndex(activeIndex + 1);
+  //       setVoiceText('');
+  //       setState((prevState) => ({ ...prevState, results: '' }));
+  //       setLoading(false);
+  //     } else {
+  //       setLoading(false);
+  //       navigation.navigate('AddYourPhotos');
+  //     }
+  //   } catch (error) {
+  //     console.error('This is the error:', error);
+  //     setLoading(false);
+  //   }
+  // };
+
+  const addAnswer = () => {
+    if (voiceText.length >= 5) {
+      // Save current answer before proceeding
+      dispatch(
+        setQuestionAnswer({
+          questionNumber: questions[activeIndex]?.id,
+          answer: voiceText,
+        })
+      );
+
+      if (activeIndex < questions.length - 1) {
+        const nextIndex = activeIndex + 1;
+        setActiveIndex(nextIndex);
+        // Set the text to the saved answer for the next question if it exists
+        setVoiceText(questions[nextIndex]?.answer || '');
       } else {
-        setLoading(false);
-        navigation.navigate('AddYourPhotos');
+        console.log('All questions answered', JSON.stringify(questions, null, 2));
+        navigation.navigate('AddYourPhotos_Redux');
       }
-    } catch (error) {
-      console.error('This is the error:', error);
-      setLoading(false);
+    } else {
+      setFalshMessageData({
+        message: 'Answer should be at least 5 characters long',
+        description: 'Please try again',
+        type: 'error',
+        icon: 'danger',
+        backgroundColor: COLORS.red,
+        textColor: COLORS.white,
+      });
+      setFalshMessage(true);
+      setTimeout(() => setFalshMessage(false), 2000);
     }
   };
 
   useEffect(() => {
     callQuestions();
   }, []);
+  useEffect(() => {
+    // Set voice text to the saved answer whenever activeIndex changes or questions update
+    if (questions && questions[activeIndex]) {
+      setVoiceText(questions[activeIndex].answer || '');
+    }
+  }, [activeIndex, questions]);
 
   return (
     <GradientBackground>
       {falshMessage && <FlashMessages falshMessageData={falshMessageData} />}
       <SafeAreaView style={{ flex: 1 }}>
 
-        <ScrollView>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+        >
 
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -181,7 +239,28 @@ const VoiceTest = ({ navigation }) => {
                   alignSelf: 'center',
                 }}
               >
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (activeIndex > 0) {
+                      const previousIndex = activeIndex - 1;
+
+                      // Save the current answer before navigating back
+                      dispatch(
+                        setQuestionAnswer({
+                          questionNumber: questions[activeIndex]?.id,
+                          answer: voiceText,
+                        })
+                      );
+
+                      // Fetch and set the previous answer
+                      const previousAnswer = questions[previousIndex]?.answer || '';
+                      setActiveIndex(previousIndex);
+                      setVoiceText(previousAnswer);
+                    } else {
+                      navigation.goBack();
+                    }
+                  }}
+                >
                   <Icon name={'chevron-left'}
                     style={{
                       padding: responsiveWidth(1.5),
@@ -191,7 +270,9 @@ const VoiceTest = ({ navigation }) => {
 
               </View>
               <View style={styles.header}>
-                <Text style={styles.questionText}>{list[activeIndex]?.question}</Text>
+                {/* <Text style={styles.questionText}>{list[activeIndex]?.question}</Text> */}
+                <Text style={styles.questionText}>{questions[activeIndex]?.question}</Text>
+
               </View>
 
               {/* <TextInput
@@ -260,7 +341,7 @@ const VoiceTest = ({ navigation }) => {
           loading={loading}
           title="Next"
           onPress={() => {
-            setLoading(true);
+            // setLoading(true);
             if (voiceText.length < 5) {
               setFalshMessageData({
                 message: 'Answer should be at least 5 characters long',

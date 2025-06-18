@@ -1,5 +1,3 @@
-import React from 'react';
-import { Platform } from 'react-native';
 const base_url = 'https://backend.ofertasvapp.com/numee_testing/login/apis';
 const image_url = 'https://backend.ofertasvapp.com/numee_testing/login';
 const node_base_url = 'https://backend.fatedating.com';

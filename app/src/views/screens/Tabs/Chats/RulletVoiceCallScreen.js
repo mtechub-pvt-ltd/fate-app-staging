@@ -1,14 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Image, Platform, PermissionsAndroid,
+  Image, Platform,
   ActivityIndicator,
   SafeAreaView,
-  ImageBackground
+  ImageBackground,
+  Alert,
+  Dimensions,
+  ScrollView
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import fonts from '../../../../consts/fonts';
-import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+// import { RTCPeerConnection, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+import { RTCPeerConnection, mediaDevices, RTCIceCandidate, RTCSessionDescription } from '@daily-co/react-native-webrtc';
 import io from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
 import { node_base_url } from '../../../../consts/baseUrls';
@@ -17,10 +21,12 @@ import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-nat
 import {
   answerTheCall,
   endTheCall,
-  initateTheCall,
-  getMatchUsers, getUsersforJokerCard, getMatchUsersForChat,
+  initateTheCall, getMatchUsersForChat,
   addrulletLog,
-  matchdecisionAfterRullet
+  matchdecisionAfterRullet,
+  addToken,
+  reportUser,
+  blockUser
 } from '../../../../Services/Auth/SignupService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
@@ -33,11 +39,11 @@ import {
 } from 'phosphor-react-native';
 import CryptoJS from 'crypto-js';
 import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
-import Images from '../../../../consts/Images';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import Swiper from 'react-native-swiper'
 import LinearGradient from 'react-native-linear-gradient';
 import FlashMessages from '../../../../components/FlashMessages/FlashMessages';
+import CustomInput from '../../../../components/CustomInput/CustomInput';
 
 
 
@@ -101,6 +107,9 @@ const configuration = {
 const RulletVoiceCallScreen = ({ route, navigation }) => {
   const refRBSheet = useRef();
   const refRBSheetList = useRef();
+  const refRBSheet_report = useRef();
+  const refMenuSheet = useRef();
+  const refBlockSheet = useRef();
   const { currentUser,
     otherUser,
     otherUserName,
@@ -120,6 +129,113 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
   //   fromNotification: false
   // }
   const [bothUsersJoined, setBothUsersJoined] = useState(false); // New state to track both users
+  const [reason, setReason] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
+
+  const handleReportUser = async () => {
+    setReportLoading(true);
+    if (reason === '') {
+      alert('Please enter reason');
+      setReportLoading(false);
+      return;
+    }
+    try {
+      const data = {
+        reported_by_user_id: currentUser,
+        reported_user_id: otherUser,
+        reason: reason,
+      };
+      console.log('report user data:', data);
+      const response = await reportUser(data);
+      // handleEndCall();
+      setReportLoading(false);
+      if (!response?.error) {
+        // handleEndCall();
+
+        socket.current.emit('end-Audiocall-report', { room: roomName.current });
+        setLoading(true);
+        setLoadingText('Ending call...');
+
+
+        peerConnection.current.close();
+        if (localStream) localStream.release();
+        if (remoteStream) remoteStream.release();
+        InCallManager.stop();
+        setLoading(false);
+        setLoadingText('');
+        alert('User reported successfully');
+        refRBSheet.current.close();
+        navigation.navigate('MyTabs', {
+          screen: 'HomePage',
+          params: { isUpdated: true },
+        });
+      } else {
+        alert('Failed to report user. Please try again.');
+      }
+    } catch (error) {
+      setReportLoading(false);
+      console.error('Error reporting user:', error);
+    }
+
+  };
+
+  const handleBlockUser = async () => {
+    setBlockLoading(true);
+    try {
+      const data = {
+        blocked_by_user_id: currentUser,
+        blocked_user_id: otherUser,
+      };
+      console.log('block user data:', data);
+      const response = await blockUser(data);
+      setBlockLoading(false);
+      if (!response?.error) {
+        socket.current.emit('end-Audiocall-report', { room: roomName.current });
+        setLoading(true);
+        const data = {
+          chat_room_name: roomName.current,
+          call_type: 'AUDIO',
+        }
+        try {
+          const endCall = await endTheCall(data);
+          console.log('endCall:', endCall);
+        } catch (error) {
+          console.error('Error ending call:', error);
+        }
+        peerConnection.current.close();
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          localStream.release();
+        }
+        if (remoteStream) {
+          remoteStream.getTracks().forEach(track => track.stop());
+          remoteStream.release();
+        }
+        InCallManager.stop();
+        setLoading(false);
+        setLoadingText('');
+        alert('User blocked successfully');
+        refBlockSheet.current.close();
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'MyTabs',
+              params: {
+                screen: 'Home',
+              },
+            },
+          ],
+        });
+      } else {
+        alert('Failed to block user. Please try again.');
+      }
+    } catch (error) {
+      setBlockLoading(false);
+      console.error('Error blocking user:', error);
+    }
+  };
   // const [bothUsersJoined, setBothUsersJoined] = useState(true); // New state to track both users
   const timerRef = useRef(null); // Ref to store the interval ID
   const [isTimerActive, setIsTimerActive] = useState(true);
@@ -136,7 +252,47 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
   const roomName = useRef(`room_${[currentUser, otherUser].sort().join('_')}`);
   const [currentMatch, setCurrentMatch] = useState(null);
   const [falshMessage, setFalshMessage] = useState(false);
-  const [falshMessageData, setFalshMessageData] = useState(null)
+  const [falshMessageData, setFalshMessageData] = useState(null);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  const [showReportTooltip, setShowReportTooltip] = useState(false);
+  const reportButtonRef = useRef(null);
+
+  // Tooltip measurements
+  const [tooltipMeasurements, setTooltipMeasurements] = useState(null);
+
+  // Check if user is using Rullet for the first time
+  useLayoutEffect(() => {
+    checkFirstTimeRulletUser();
+  }, []);
+
+  // Function to check if user is using Rullet for the first time
+  const checkFirstTimeRulletUser = async () => {
+    try {
+      const firstTimeRulletUser = await AsyncStorage.getItem('firstTimeRulletUser');
+
+      if (firstTimeRulletUser === null) {
+        // User is using Rullet for the first time
+        console.log('First time Rullet user detected');
+        setIsFirstTimeUser(true);
+
+        // Set the flag in AsyncStorage so it won't show again
+        await AsyncStorage.setItem('firstTimeRulletUser', 'false');
+        console.log('First time Rullet user flag set to false in AsyncStorage');
+
+        // Show tooltip instead of alert for first-time users
+        setTimeout(() => {
+          setShowReportTooltip(true);
+        }, 1000); // Show tooltip after 3 seconds
+      } else {
+        console.log('Returning Rullet user detected');
+        setTimeout(() => {
+          setShowReportTooltip(true);
+        }, 1000); // Show tooltip after 3 seconds
+      }
+    } catch (error) {
+      console.error('Error checking first time Rullet user status:', error);
+    }
+  };
 
   useEffect(() => {
 
@@ -169,16 +325,38 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
       if (localStream) {
         localStream.release()
         setLocalStream(null);
-      };
+      }
       if (remoteStream) {
         remoteStream.release()
         setRemoteStream(null);
-      };
+      }
       InCallManager.stop();
       setLoading(false);
       setLoadingText('');
       socket.current.disconnect();
       refRBSheet.current.open();
+    });
+    socket.current.on('end-Audiocall-report', () => {
+
+      console.log('Other user has ended the call end-Audiocall-report');
+      peerConnection.current.close();
+      if (localStream) {
+        localStream.release()
+        setLocalStream(null);
+      }
+      if (remoteStream) {
+        remoteStream.release()
+        setRemoteStream(null);
+      }
+      InCallManager.stop();
+      setLoading(false);
+      setLoadingText('');
+      socket.current.disconnect();
+      // refRBSheet.current.open();
+      navigation.navigate('MyTabs', {
+        screen: 'HomePage',
+        params: { isUpdated: true },
+      });
     });
 
     startLocalStream();
@@ -189,7 +367,7 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
 
     return () => {
       console.log('Cleaning up...');
-      peerConnection.current.close();
+      peerConnection?.current?.close();
       peerConnection.current = null;
 
       if (localStream) localStream.release();
@@ -273,7 +451,7 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
       console.error('Error accessing media devices:', error);
       peerConnection.current.close();
       if (localStream) localStream.release();
-      if (remoteStream) remoteStream.release();
+      if (remoteStream) localStream.release();
       // navigation.goBack();
       // goBack();
 
@@ -399,6 +577,15 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
 
   };
 
+  const updateUserTokens = async (userId, tokensToDeduct) => {
+    try {
+      const response = await addToken({ user_id: userId, new_tokens: -tokensToDeduct });
+      console.log('Token update response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error updating tokens:', error);
+    }
+  };
 
   const addrulletLogData = async (e) => {
 
@@ -416,7 +603,11 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
       console.log('response:', response);
 
       if (response?.error === false) {
+        // Deduct 29 tokens from the current user
+
+
         if (response?.otherUserStillDeciding === true) {
+          // await updateUserTokens(currentUser, 29);
           setFalshMessageData({
             message: 'Success',
             description: response.msg,
@@ -425,6 +616,9 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
             backgroundColor: COLORS.success,
             textColor: COLORS.white,
           });
+          // get current user from async storage and add token
+
+          // await addToken();
           setFalshMessage(true);
 
           setTimeout(() => {
@@ -473,6 +667,16 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
   useEffect(() => {
     console.log('data>>>>>>>', route.params);
   }, []);
+
+  // Effect to measure the report button for tooltip positioning
+  useEffect(() => {
+    if (showReportTooltip && reportButtonRef.current) {
+      reportButtonRef.current.measure((x, y, width, height, pageX, pageY) => {
+        setTooltipMeasurements({ x, y, width, height, pageX, pageY });
+        console.log('Button measurements:', { x, y, width, height, pageX, pageY });
+      });
+    }
+  }, [showReportTooltip]);
   return (
     <SafeAreaView
       style={{
@@ -481,6 +685,55 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
       }}
     >
       {falshMessage && <FlashMessages falshMessageData={falshMessageData} />}
+
+      {/* Report Button Tooltip */}
+      {showReportTooltip && reportButtonRef.current && (
+        <View
+          style={{
+            position: 'absolute',
+            top: responsiveHeight(14),
+            right: responsiveWidth(8),
+            backgroundColor: 'rgba(255, 255, 255, 1)',
+            padding: responsiveWidth(3),
+            borderRadius: 10,
+            width: responsiveWidth(70),
+            zIndex: 9999,
+          }}
+        >
+
+          <Text
+            style={{
+              color: COLORS.dark,
+              fontSize: responsiveFontSize(1.8),
+              fontFamily: fonts.PoppinsRegular,
+              marginBottom: responsiveHeight(1),
+            }}
+          >
+            Tap here to block and report the user for inappropriate or offensive behaviour during the call
+          </Text>
+          <TouchableOpacity
+            style={{
+              backgroundColor: COLORS.primary,
+              paddingVertical: responsiveHeight(0.7),
+              paddingHorizontal: responsiveWidth(3),
+              borderRadius: 5,
+              alignSelf: 'flex-end',
+            }}
+            onPress={() => setShowReportTooltip(false)}
+          >
+            <Text
+              style={{
+                color: COLORS.white,
+                fontSize: responsiveFontSize(1.6),
+                fontFamily: fonts.PoppinsMedium,
+              }}
+            >
+              Got it!
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <BottomSheet
         height={responsiveHeight(45)}
         ref={refRBSheet}>
@@ -561,7 +814,6 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
             style={{
               flex: 1,
               zIndex: 9,
-              // justifyContent: 'center',
 
             }}
           >
@@ -571,8 +823,9 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
                 marginVertical: responsiveHeight(2),
               }}
               onPress={() => {
-                // handleEndCall();\
                 refRBSheetList.current.close();
+                navigation.goBack();
+
               }}
             >
               <Icon
@@ -588,7 +841,7 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
             <View
               style={{
                 // height: responsiveHeight(30),
-                marginHorizontal: Platform.OS === 'ios' ? responsiveWidth(5) : responsiveWidth(2),
+                marginHorizontal: responsiveWidth(5),
               }}>
 
               <Text
@@ -613,10 +866,11 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
             </View>
             <View
               style={{
-                height: responsiveHeight(60),
+                height: responsiveHeight(70),
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginTop: responsiveHeight(2),
+                marginHorizontal: responsiveWidth(5),
 
               }}
             >
@@ -628,7 +882,17 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
                 {
                   currentMatch && currentMatch.map((item, index) => {
                     return (
-                      <View style={styles.slide}
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.slide}
+                        onPress={() => {
+                          refRBSheetList.current.close();
+                          const e = {
+                            action_response: "CONFIRM",
+                            with_swap_match_user_id: item?.user_id
+                          }
+                          addrulletLogData(e);
+                        }}
                         key={index}
                       >
                         <ImageBackground
@@ -679,7 +943,7 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
 
 
                         </ImageBackground>
-                        <View
+                        {/* <View
 
                           style={{
                             flexDirection: 'row',
@@ -724,10 +988,10 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
                               padding: 0,
                             }}
                           />
-                        </View>
+                        </View> */}
 
 
-                      </View>
+                      </TouchableOpacity>
                     )
                   })
 
@@ -739,6 +1003,205 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
           </View>
         </GradientBackground>
       </BottomSheet>
+
+      <BottomSheet height={responsiveHeight(60)} ref={refRBSheet_report}>
+        <View style={{
+          marginTop: responsiveHeight(3),
+        }}>
+          <Text style={{
+            color: COLORS.white,
+            fontSize: responsiveFontSize(2.5),
+            fontFamily: fonts.PoppinsMedium,
+            textAlign: 'center',
+            width: responsiveWidth(70),
+            marginVertical: responsiveHeight(2),
+            alignSelf: 'center',
+          }}>
+            Are you sure you want to{'\n'} Report this user?
+          </Text>
+          <CustomInput
+            mainContainerStyle={{
+              marginTop: responsiveHeight(2),
+            }}
+            title="Add Reason"
+            titleStyle={{
+              marginBottom: responsiveHeight(1),
+            }}
+            autoCapitalize="none"
+            keyboardType="default"
+            multiline={true}
+            onChangeText={setReason}
+            style={{
+              height: responsiveHeight(15),
+              backgroundColor: '#FFFFFF29',
+              width: responsiveWidth(90),
+              color: COLORS.white,
+              fontFamily: fonts.PoppinsRegular,
+              fontSize: responsiveFontSize(2),
+              borderRadius: 15,
+              padding: responsiveWidth(3),
+            }}
+          />
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            width: responsiveWidth(70),
+            alignSelf: 'center',
+            marginTop: responsiveHeight(2),
+          }}>
+            <PrimaryButton
+              title="Cancel"
+              onPress={() => refRBSheet_report.current.close()}
+              style={{
+                alignSelf: 'center',
+                width: responsiveWidth(30),
+                backgroundColor: COLORS.primary,
+                padding: 0,
+              }}
+            />
+            <PrimaryButton
+              title="Confirm"
+              onPress={handleReportUser}
+              style={{
+                alignSelf: 'center',
+                width: responsiveWidth(30),
+                padding: 0,
+              }}
+              loading={reportLoading}
+            />
+          </View>
+        </View>
+      </BottomSheet>
+
+      {/* Menu Bottom Sheet */}
+      <BottomSheet height={responsiveHeight(25)} ref={refMenuSheet}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={{
+            marginTop: responsiveHeight(3),
+            paddingHorizontal: responsiveWidth(5),
+          }}>
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: responsiveHeight(2),
+                borderBottomWidth: 1,
+                borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+              }}
+              onPress={() => {
+                refMenuSheet.current.close();
+                setTimeout(() => {
+                  refRBSheet_report.current.open();
+                }, 300);
+              }}
+            >
+              <Icon name="flag" size={20} color={COLORS.white} style={{ marginRight: responsiveWidth(4) }} />
+              <Text style={{
+                color: COLORS.white,
+                fontSize: responsiveFontSize(2),
+                fontFamily: fonts.PoppinsRegular,
+              }}>
+                Report User
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: responsiveHeight(2),
+              }}
+              onPress={() => {
+                refMenuSheet.current.close();
+                setTimeout(() => {
+                  refBlockSheet.current.open();
+                }, 300);
+              }}
+            >
+              <Icon name="ban" size={20} color={COLORS.white} style={{ marginRight: responsiveWidth(4) }} />
+              <Text style={{
+                color: COLORS.white,
+                fontSize: responsiveFontSize(2),
+                fontFamily: fonts.PoppinsRegular,
+              }}>
+                Block User
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </BottomSheet>
+
+      {/* Block User Bottom Sheet */}
+      <BottomSheet height={responsiveHeight(45)} ref={refBlockSheet}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={{
+            marginTop: responsiveHeight(3),
+          }}>
+            <Icon
+              name="ban"
+              size={responsiveFontSize(3.5)}
+              color={COLORS.white}
+              style={{
+                alignSelf: 'center',
+                marginBottom: responsiveHeight(2),
+              }}
+            />
+
+            <Text style={{
+              color: COLORS.white,
+              fontSize: responsiveFontSize(2.5),
+              fontFamily: fonts.PoppinsMedium,
+              textAlign: 'center',
+              width: responsiveWidth(70),
+              marginVertical: responsiveHeight(2),
+              alignSelf: 'center',
+            }}>
+              Are you sure you want to Block this user?
+            </Text>
+            <Text style={{
+              color: COLORS.white,
+              fontSize: responsiveFontSize(1.8),
+              fontFamily: fonts.PoppinsRegular,
+              textAlign: 'center',
+              width: responsiveWidth(80),
+              marginVertical: responsiveHeight(1),
+              alignSelf: 'center',
+            }}>
+              You won't be able to see their profile.
+            </Text>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-around',
+              width: responsiveWidth(70),
+              alignSelf: 'center',
+              marginTop: responsiveHeight(3),
+            }}>
+              <PrimaryButton
+                title="Cancel"
+                onPress={() => refBlockSheet.current.close()}
+                style={{
+                  alignSelf: 'center',
+                  width: responsiveWidth(30),
+                  backgroundColor: COLORS.primary,
+                  padding: 0,
+                }}
+              />
+              <PrimaryButton
+                title="Block"
+                onPress={handleBlockUser}
+                style={{
+                  alignSelf: 'center',
+                  width: responsiveWidth(30),
+                  padding: 0,
+                  backgroundColor: COLORS.secondary,
+                }}
+                loading={blockLoading}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </BottomSheet>
+
       <View
         style={{
           flex: 1,
@@ -805,6 +1268,25 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
           }}
         /> */}
         <View style={[styles.videoContainer]}>
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: responsiveHeight(3),
+              right: responsiveWidth(5),
+              zIndex: 9999,
+              padding: responsiveWidth(2),
+            }}
+            ref={reportButtonRef}
+            onPress={() => {
+              refMenuSheet.current.open();
+            }}
+          >
+            <Icon
+              name="ellipsis-v"
+              size={responsiveFontSize(2)}
+              color={COLORS.white}
+            />
+          </TouchableOpacity>
           <View
             style={{
               flexDirection: 'row',
@@ -892,7 +1374,7 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
           }]}
             onPress={toggleMicrophone}
           >
-            {isMicMuted ?
+            {!isMicMuted ?
               <Microphone
 
                 color={COLORS.white} weight="fill" size={24} />
@@ -909,10 +1391,11 @@ const RulletVoiceCallScreen = ({ route, navigation }) => {
 
           <TouchableOpacity style={[styles.button, {
             paddingHorizontal: responsiveWidth(5.5),
+            display: 'none'
           }]}
             onPress={switchCamera}
           >
-            {isSpeakerEnabled ?
+            {!isSpeakerEnabled ?
               <SpeakerHigh
 
                 color={COLORS.white} weight="fill" size={24} />
@@ -1011,6 +1494,26 @@ const styles = StyleSheet.create({
     padding: 10,
     paddingLeft: 20,
   },
+  tooltip: {
+    position: 'absolute',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 15,
+    borderRadius: 10,
+    zIndex: 9999,
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 10,
+    borderStyle: 'solid',
+    backgroundColor: 'transparent',
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'rgba(0, 0, 0, 0.8)',
+  }
 });
 
 export default RulletVoiceCallScreen;

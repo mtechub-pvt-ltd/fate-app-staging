@@ -7,6 +7,9 @@
 #import <RNCPushNotificationIOS.h>
 #import <GoogleSignIn/GoogleSignIn.h>
 #import <AVFoundation/AVFoundation.h>
+
+
+
 @implementation AppDelegate
 
 
@@ -60,6 +63,8 @@
   return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
 #endif
 }
+
+
 
 // Required for the register event.
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken

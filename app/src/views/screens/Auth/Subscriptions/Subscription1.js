@@ -6,11 +6,8 @@ import {
   View,
   Platform,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
-  Alert,
   Image,
-  Linking,
 } from 'react-native';
 
 import {
@@ -39,7 +36,6 @@ import {
   getUserDetail,
   storeUserDetail
 } from '../../../../HelperFunctions/AsyncStorage/userDetail';
-import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 import fonts from '../../../../consts/fonts';
 
 
@@ -52,11 +48,11 @@ const isIos = Platform.OS === 'ios';
 
 //product id from appstoreconnect app->subscriptions
 const subscriptionSkus = Platform.select({
-  ios: ['silvermonthly12345', 'platinummonthly12345', 'goldmonthly12345'],
+  ios: ['silvermonthly12345_new', 'platinummonthly12345_new', 'goldmonthly12345_new'],
 });
 const dataArray = [
   {
-    productId: 'platinummonthly12345',
+    productId: 'platinummonthly12345_new',
     feature: [
       'Read receipt',
       'Weekly Disqualification insight',
@@ -64,7 +60,7 @@ const dataArray = [
     ]
   },
   {
-    productId: 'silvermonthly12345',
+    productId: 'silvermonthly12345_new',
     feature: [
       'Read receipt',
       'Weekly Disqualification insight',
@@ -74,7 +70,7 @@ const dataArray = [
     ]
   },
   {
-    productId: 'goldmonthly12345',
+    productId: 'goldmonthly12345_new',
     feature:
       [
         'Weekly Disqualification insight',

@@ -1,11 +1,9 @@
-import { StyleSheet, Image, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import React from 'react';
 // import { Image } from 'moti';
-import Images from '../../consts/Images';
 import { width, height } from '../../consts/Dimension';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import COLORS from '../../consts/colors';
-import fonts from '../../consts/fonts';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 const PrimaryButton = props => {
   return (
@@ -37,9 +35,9 @@ const PrimaryButton = props => {
       />
       <Text
         style={{
-          fontSize: responsiveFontSize(2.5),
+          fontSize: props?.fontSize ? props.fontSize : responsiveFontSize(2.5),
           color: props?.textColor ? props.textColor : COLORS.white,
-          fontWeight: '600',
+          fontWeight: '500',
           textAlign: 'center',
           lineHeight: responsiveHeight(6),
         }}>

@@ -25,7 +25,32 @@ const registerByEmail = async data => {
     password: data.password,
     device_id: token, // device_id is required for the notifications
     role: 'user',
-    type: data.type
+    type: data.type,
+    addUserToWaitingList: data.addUserToWaitingList
+  };
+  console.log('registerByEmail body:', body);
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('This is the error:', error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
+const checkUserExists = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/checkUserExists';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  var body = {
+    email: data.email,
   };
   try {
     const response = await fetch(InsertAPIURL, {
@@ -98,7 +123,7 @@ const updateUserProfileData = async (data, id) => {
   var body = {
     name: data?.data?.full_name || data?.name,
     age: data?.data?.age || data?.age,
-    gender: data?.data?.gender?.toUpperCase(),
+    gender: data?.data?.gender?.toUpperCase() || data?.gender?.toUpperCase(),
     images: data?.data?.images || data?.images,
     profile_image: data?.data?.profile_picture || data?.profile_image,
     note: data?.data?.note || data?.note || '',
@@ -121,7 +146,7 @@ const updateUserProfileData = async (data, id) => {
 };
 const getMatchUsers = async data => {
   let user_id = data.user_id;
-  let prefered_gender = data.prefered_gender;
+  let prefered_gender = data.prefered_gender.toUpperCase();
   // let current_user_gender = data.current_user_gender == 'FEMALE' ? 'MALE' : 'FEMALE'
 
   // AsyncStorage.setItem('signup_user', true);
@@ -129,7 +154,7 @@ const getMatchUsers = async data => {
   const signup_user = JSON.parse(val);
 
 
-  if (signup_user.signup_user == true) {
+  if (signup_user?.signup_user == true) {
     var InsertAPIURL = node_base_url + '/user/v1/newMatchAlgo2?preferred_gender=' + prefered_gender + '&new_user_id=' + user_id;
     // node_base_url + '/user/v1/newMatchAlgo?current_user_gender=' + current_user_gender + '&current_user_id=' + user_id;
   }
@@ -305,8 +330,9 @@ const addNote = async data => {
     'Content-Type': 'application/json',
   };
   var body = {
-    user_id: data.user_id,
-    note: data.note,
+    user_id: data?.user_id,
+    note: data?.note,
+    bio_notes: data?.bio_notes,
   };
   try {
     const response = await fetch(InsertAPIURL, {
@@ -655,6 +681,32 @@ const reportUser = async data => {
     throw error; // Throw the error to be caught by the
   }
 };
+
+const blockUser = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/reportUser';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+  var body = {
+    reported_by_user_id: data?.blocked_by_user_id,
+    reported_user_id: data?.blocked_user_id,
+    reason: data?.reason || '',
+  };
+
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('This is the error:', error);
+    throw error; // Throw the error to be caught by the
+  }
+};
 const getUserInsights = async data => {
   var InsertAPIURL = node_base_url + '/user/v1/getUserInsights?user_id=' + data.user_id + '&date_type=' + data.date_type;
   var headers = {
@@ -871,11 +923,6 @@ const addToken = async data => {
     const response = await fetch(InsertAPIURL, {
       method: 'GET',
       headers: headers,
-      // body: JSON.stringify({
-      //   user_id: data.user_id,
-      //   oldPassword: data.oldPassword,
-      //   newPassword: data.newPassword,
-      // }),
     });
     const jsonResponse = await response.json();
     return jsonResponse;
@@ -1057,9 +1104,58 @@ const matchdecisionAfterRullet = async data => {
     throw error; // Throw the error to be caught by the calling function
   }
 };
+const callConnectSpotify = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/connectSpotify';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  var body = {
+    user_id: data?.user_id,
+    spotify_data: data?.spotify_data,
+  };
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('This is the error:', error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
+const callConnectInstagram = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/connectInstagram';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  var body = {
+    user_id: data?.user_id,
+    instagram_data: data?.instagram_data,
+  };
+  console.log('≤≤≤≤≤≤ body ≥≥≥≥≥≥', body);
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('This is the error:', error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
 
 const generateWaveFormImage = async data => {
-  var InsertAPIURL = node_base_url + '/user/v1/waveform';
+  var InsertAPIURL = node_base_url + '/waveform';
   var headers = {
     Accept: 'application/json',
     'Content-Type': 'application/json',
@@ -1081,6 +1177,122 @@ const generateWaveFormImage = async data => {
   }
 };
 
+const userLogout = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/userLogout';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+  var body = {
+    user_id: data.user_id,
+  };
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('This is the error:', error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
+
+const deleteUserAccount = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/deleteUserPermanently/' + data.user_id;
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'DELETE',
+      headers: headers,
+    });
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
+const sendFateRulletUserResponsetoOtherUser = async data => {
+  var InsertAPIURL = node_base_url + '/getFateRulletUserResponseFromOtherUser';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        accpeted_user_id: data?.accpeted_user_id,
+        to_tell_user_id: data?.to_tell_user_id,
+        // otherUserName: data?.otherUserName,
+        // otherUserImage: data?.otherUserImage,
+
+      })
+    });
+
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('Error ' + error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
+const getResponse = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/get-response';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        email: data?.email
+      })
+    });
+
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('Error ' + error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
+const updateWaitingListStatus = async data => {
+  var InsertAPIURL = node_base_url + '/user/v1/update-waitinglist-status';
+  var headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const response = await fetch(InsertAPIURL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        user_id: data?.user_id,
+        newStatus: data?.newStatus
+      })
+    });
+
+    const jsonResponse = await response.json();
+    return jsonResponse;
+  } catch (error) {
+    console.error('Error ' + error);
+    throw error; // Throw the error to be caught by the calling function
+  }
+};
 
 export {
   registerByEmail,
@@ -1118,6 +1330,7 @@ export {
   addToken,
   deleteToken,
   reportUser,
+  blockUser,
   verifyPhotos,
   getUserByID,
   forgetPasswordNew,
@@ -1125,5 +1338,13 @@ export {
   getFateRulletUsersMatchFromWaitingPool,
   addrulletLog,
   matchdecisionAfterRullet,
-  generateWaveFormImage
+  generateWaveFormImage,
+  checkUserExists,
+  callConnectSpotify,
+  callConnectInstagram,
+  userLogout,
+  deleteUserAccount,
+  sendFateRulletUserResponsetoOtherUser,
+  getResponse,
+  updateWaitingListStatus
 };

@@ -3,10 +3,11 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
     step: 1, // Track the current step (1-6)
     email: '',
+    type: '',
     password: '',
     fullName: '',
     age: '',
-    gender: '',
+    gender: 'Male',
     questions: [], // Changed from an object to an array
     photos: [
         { name: '1', key: 'one', image: '' },
@@ -27,7 +28,7 @@ const initialState = {
             min: 25,
             max: 50,
         },
-        preferredGender: 'SELECT_GENDER',
+        preferredGender: 'Male',
     },
     bio: {
         text: '',
@@ -46,6 +47,9 @@ const formSlice = createSlice({
             const { email, password } = action.payload;
             state.email = email;
             state.password = password;
+        },
+        setAccountType: (state, action) => {
+            state.type = action.payload;
         },
         setPersonalDetails: (state, action) => {
             const { fullName, age, gender } = action.payload;
@@ -89,6 +93,7 @@ const formSlice = createSlice({
 export const {
     setStep,
     setEmailAndPassword,
+    setAccountType,
     setPersonalDetails,
     setQuestionAnswer,
     setQuestions,

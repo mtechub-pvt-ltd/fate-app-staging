@@ -1,44 +1,47 @@
-import { StyleSheet, Text, View } from 'react-native';
-import React from 'react';
-import { width, height } from '../../consts/Dimension';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import COLORS from '../../consts/colors';
-import FlashMessage, { showMessage, hideMessage } from 'react-native-flash-message';
+import React, { useEffect } from 'react';
+import { height } from '../../consts/Dimension';
+import FlashMessage, { showMessage } from 'react-native-flash-message';
 import fonts from '../../consts/fonts';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 
-const FlashMessages = ({ falshMessageData }) => {
-  React.useEffect(() => {
-    showMessage({
-      message: falshMessageData.message,
-      description: falshMessageData.description,
-      type: falshMessageData.type,
-      icon: {
-        icon: falshMessageData.icon,
-        position: 'left',
-        color: falshMessageData.textColor,
-      },
-    });
-  }, []);
+const FlashMessages = ({ flashMessageData }) => {
+  useEffect(() => {
+    if (flashMessageData && flashMessageData.message) {
+      showMessage({
+        message: flashMessageData.message,
+        description: flashMessageData.description,
+        type: flashMessageData.type,
+        backgroundColor: flashMessageData.backgroundColor, // Using backgroundColor from the flash message data
+        color: "#ffffff", // Text color
+        icon: {
+          icon: flashMessageData.icon,
+          position: 'left',
+          color: "#ffffff",
+        },
+        duration: 3000,
+      });
+    }
+  }, [flashMessageData]); // Update when flash message data changes
+
   return (
     <FlashMessage
       style={{
-        backgroundColor: falshMessageData.backgroundColor,
+        backgroundColor: flashMessageData?.backgroundColor || 'rgba(0,0,0,0.8)',
         zIndex: 9999,
       }}
       titleStyle={{
         fontWeight: 'bold',
-        color: falshMessageData.textColor,
+        color: "#ffffff",
         fontFamily: fonts.PoppinsMedium,
         marginBottom: height * 0.01,
         fontSize: responsiveFontSize(2),
       }}
       textStyle={{
-        color: falshMessageData.textColor,
+        color: "#ffffff",
         fontFamily: fonts.PoppinsMedium,
       }}
       position="top"
-      duration={5000}
+      duration={3000}
     />
   );
 };

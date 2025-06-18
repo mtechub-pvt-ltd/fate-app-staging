@@ -1,22 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  Image, Platform, PermissionsAndroid,
-  ActivityIndicator
+  View, TouchableOpacity, StyleSheet
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { fonts } from '../../../../consts/fonts';
 
-import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+// import { RTCPeerConnection, mediaDevices, RTCSessionDescription } from 'react-native-webrtc';
+import { RTCPeerConnection, mediaDevices, RTCSessionDescription } from '@daily-co/react-native-webrtc';
 import io from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
 import { node_base_url } from '../../../../consts/baseUrls';
-import COLORS from '../../../../consts/colors';
-import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
-import {
-  answerTheCall,
-  endTheCall
-} from '../../../../Services/Auth/SignupService';
+import { responsiveHeight, responsiveWidth } from 'react-native-responsive-dimensions';
+
+
 
 
 

@@ -1,46 +1,33 @@
 import 'react-native-gesture-handler';
 import React, { useRef, useEffect, useState } from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
   Text,
-  useColorScheme,
   View,
-  Linking,
   Platform,
   Alert,
-  BackHandler,
   PermissionsAndroid,
-  Image,
   TouchableOpacity,
+  LogBox,
+  Modal,
+  StyleSheet,
+  Image
 } from 'react-native';
 
 import {
   NavigationContainer,
   getFocusedRouteNameFromRoute,
-  useNavigationState,
-  useRoute,
   useNavigationContainerRef,
-  StackActions,
-  NavigationActions,
-  useIsFocused,
-  navigation,
 } from '@react-navigation/native';
 import COLORS from './app/src/consts/colors';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import Entypo from 'react-native-vector-icons/Entypo';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Onboarding from './app/src/views/screens/Onboarding/Onboarding';
+import ConnectSpotify from './app/src/views/screens/Onboarding/ConnectSpotify';
 import Test from './app/src/views/screens/Onboarding/Test';
+import TestInstagram from './app/src/views/screens/Onboarding/TestInstagram';
+import TestInstagramNew from './app/src/views/screens/Onboarding/TestInstagramNew';
 import Onboarding_signups from './app/src/views/screens/Onboarding/Onboarding_signups';
+import Onboarding_Permissions from './app/src/views/screens/Onboarding/Onboarding_Permissions';
 import Onboarding_Continue from './app/src/views/screens/Onboarding/Onboarding_Continue';
-import Login from './app/src/views/screens/Auth/Login/Login';
 import Login_N from './app/src/views/screens/Auth/Login/Login_N';
 import SignUp_N from './app/src/views/screens/Auth/SignUp/SignUp_N';
 import ForgotPassword_N from './app/src/views/screens/Auth/ForgotPassword/ForgotPassword_N';
@@ -49,11 +36,11 @@ import CreateNewPassword from './app/src/views/screens/Auth/ForgotPassword/Creat
 import OnboardingQuestions from './app/src/views/screens/Auth/OnboardingQuestions/OnboardingQuestions';
 import OnboardingQuestions_Redux from './app/src/views/screens/Auth/OnboardingQuestions/OnboardingQuestions_Redux';
 import BasicProfileInfo from './app/src/views/screens/Auth/OnboardingQuestions/BasicProfileInfo';
+import ChooseHowToAnswer from './app/src/views/screens/Auth/OnboardingQuestions/ChooseHowToAnswer';
 import AddYourPhotos from './app/src/views/screens/Auth/OnboardingQuestions/AddYourPhotos';
 import AddYourPhotos_Redux from './app/src/views/screens/Auth/OnboardingQuestions/AddYourPhotos_Redux';
 import LocationPermission from './app/src/views/screens/Auth/OnboardingQuestions/LocationPermission';
-import HomePage from './app/src/views/screens/Tabs/Homepage/HomePage';
-import HomePage_test from './app/src/views/screens/Tabs/Homepage/HomePage_test';
+import HomePage_test from './app/src/views/screens/Tabs/Homepage/HomePage_test_per';
 import HomePage1 from './app/src/views/screens/Tabs/Homepage/HomePage1';
 import ChatList from './app/src/views/screens/Tabs/Chats/ChatList';
 import ChatRoom from './app/src/views/screens/Tabs/Chats/ChatRoom';
@@ -61,109 +48,132 @@ import ChatList_New from './app/src/views/screens/Tabs/Chats/ChatList_New';
 import Chats_New from './app/src/views/screens/Tabs/Chats/Chats_New';
 import ChatCallList from './app/src/views/screens/Tabs/Chats/ChatCallList';
 import Chat from './app/src/views/screens/Tabs/Chats/Chat';
-import Premiums from './app/src/views/screens/Tabs/Premiums/Premiums';
 import PremiumNew from './app/src/views/screens/Tabs/Premiums/PremiumNew';
 import DecisionMatch from './app/src/views/screens/Tabs/Premiums/DecisionMatch';
 import RulletCalling from './app/src/views/screens/Tabs/Premiums/RulletCalling';
 import Settings from './app/src/views/screens/Tabs/Settings/Settings';
+import VapiWebView from './app/src/views/screens/Tabs/Settings/VapiWebView';
 import Insights from './app/src/views/screens/Tabs/Settings/Insights';
 import ViewProfile from './app/src/views/screens/Tabs/Settings/ViewProfile';
 import EditProfile from './app/src/views/screens/Tabs/Settings/EditProfile';
 import PricingandPlan from './app/src/views/screens/Tabs/Settings/PricingandPlan';
+import PricingandPlanAndroid from './app/src/views/screens/Tabs/Settings/PricingandPlanAndroid';
 import UpdatePasswords from './app/src/views/screens/Tabs/Settings/UpdatePasswords';
 import VideoCallScreen from './app/src/views/screens/Tabs/Chats/VideoCallScreen';
 import VoiceCallScreen from './app/src/views/screens/Tabs/Chats/VoiceCallScreen';
 import FateRulletVoiceCallScreen from './app/src/views/screens/Tabs/Chats/FateRulletVoiceCallScreen';
-
-import SignUp from './app/src/views/screens/Auth/SignUp/SignUp';
-import VerifyOTP from './app/src/views/screens/Auth/VerifyOTP/VerifyOTP';
-// import RNExitApp from 'react-native-exit-app';
-import { base_url, image_url } from './app/src/consts/baseUrls';
-import OnboardingSlider from './app/src/views/screens/Auth/OnboardingSlider/OnboardingSlider';
-// import SplashScreen from 'react-native-splash-screen';
-import ForgotPassword from './app/src/views/screens/Auth/ForgotPassword/ForgotPassword';
-
 import LoadingForQs from './app/src/views/screens/Auth/OnboardingQuestions/LoadingForQs';
 import LoadingForQs_test from './app/src/views/screens/Auth/OnboardingQuestions/LoadingForQs_test';
-import WebRtc from './app/src/views/screens/Tabs/Chats/WebRtc';
 import { BlurView } from '@react-native-community/blur';
-import VideoCallScreenFB from './app/src/views/screens/Tabs/Chats/VideoCallScreenFB';
 import VideoCallScreen_test from './app/src/views/screens/Tabs/Chats/VideoCallScreen_test';
 import OnboardingVoiceNotes from './app/src/views/screens/Auth/OnboardingQuestions/OnboardingVoiceNotes';
 import OnboardingVoiceNotesTest from './app/src/views/screens/Auth/OnboardingQuestions/OnboardingVoiceNotesTest';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { withIAPContext } from 'react-native-iap';
-// fire base seeting 
 import firebase from '@react-native-firebase/app';
-import app from './firebase';
 import messaging from '@react-native-firebase/messaging';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import PushNotification from 'react-native-push-notification';
 import ProfilePreference from './app/src/views/screens/Auth/OnboardingQuestions/ProfilePreference';
 import UpdateProfilePreference from './app/src/views/screens/Auth/OnboardingQuestions/UpdateProfilePreference';
+import ProfileCreationLoader from './app/src/views/screens/Auth/OnboardingQuestions/ProfileCreationLoader';
 import {
   declineVideoCall,
-  declineRulletCall,
   declineMatchReq,
   acceptMatchReq,
-  removeUserFromFateRullet,
   deleteToken,
+  sendFateRulletUserResponsetoOtherUser,
 } from './app/src/Services/Auth/SignupService';
 import Subscription1 from './app/src/views/screens/Auth/Subscriptions/Subscription1';
 import PurchaseTokens from './app/src/views/screens/Tabs/Settings/PurchaseTokens';
 import {
   House,
-  BellRinging,
-  BellSimple,
-  MagnifyingGlass,
   ChatCircle,
   MonitorPlay,
   Gear,
   PhoneDisconnect,
   Phone,
-  WarningCircle
+  WarningCircle,
+
 } from 'phosphor-react-native';
-import { use } from './server/app/uploadimage';
-import { getUserDetail } from './app/src/HelperFunctions/AsyncStorage/userDetail';
-import IncomingCallNotification from './app/src/components/IncomingCallNotification/IncomingCallNotification';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import { responsiveFontSize, responsiveHeight, responsiveWidth } from 'react-native-responsive-dimensions';
-import Images from './app/src/consts/Images';
 import fonts from './app/src/consts/fonts';
-import PrimaryButton from './app/src/components/Button/PrimaryButton';
 import RulletVoiceCallScreen from './app/src/views/screens/Tabs/Chats/RulletVoiceCallScreen';
 import FlashMessages from './app/src/components/FlashMessages/FlashMessages';
 import OnboardingVoiceNotesIOS from './app/src/views/screens/Auth/OnboardingQuestions/OnboardingVoiceNotesIOS';
-import { Provider } from 'react-redux';
+import OnboardingVoiceNotesIOSUpdate from './app/src/views/screens/Auth/OnboardingQuestions/OnboardingVoiceNotesIOSUpdate';
+import {
+  Provider,
+  useDispatch,
+  useSelector,
+} from 'react-redux';
 import store from './app/src/redux/store';
+import Onboarding from './app/src/views/screens/Onboarding/Onboarding';
+import PurchaseTokensAndroid from './app/src/views/screens/Tabs/Settings/PurchaseTokensAndroid';
+import {
+  getUserDetail,
+  storeUserDetail,
+} from './app/src/HelperFunctions/AsyncStorage/userDetail';
+import { WalkthroughProvider, enableExperimentalLayoutAnimation } from 'react-native-interactive-walkthrough';
+import AudioRecord from 'react-native-audio-record';
+import { requestMultiple, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import Zeroconf from 'react-native-zeroconf';
+import { Icon } from 'react-native-paper';
+import Images from './app/src/consts/Images';
+import { setNewUserFlag } from './app/src/redux/features/tourGuide/tourGuideSlice';
+import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
+import EditProfileNew from './app/src/views/screens/Tabs/Settings/EditProfileNew';
+import TestVoice from './app/src/views/screens/Onboarding/TestVoice';
+import GetInstantAccess from './app/src/views/screens/Tabs/Settings/GetInstantAccess';
+import NewWaitingListScreen1 from './app/src/views/screens/Auth/OnboardingQuestions/NewWaitingListScreen1';
 
 
 
 
-
+enableExperimentalLayoutAnimation();
+LogBox.ignoreAllLogs(true);
+const zeroconf = new Zeroconf();
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 
 
 
+
 function MyTabs({ route, naigation }) {
   const routeName = getFocusedRouteNameFromRoute(route);
+  const [hasShownTourGuide, setHasShownTourGuide] = useState(false);
 
+  // Get the Redux store to access the isNewUser flag
+  const dispatch = useDispatch();
+  const isNewUser = useSelector((state) => state.tourGuide.isNewUser);
 
-  // useEffect(() => {
-  //   if (routeName !== 'Premiums') {
-  //     getUserDetail().then(async (res) => {
-  //       const data = { user_id: res?.data?.id };
-  //       const response = await removeUserFromFateRullet(data);
-  //       console.log('removeUserFromFateRullet', response);
-  //     });
-  //   }
-  // }, [routeName]);
+  // Check if the user has already seen the tour guide
+  useEffect(() => {
+    const checkTourGuideStatus = async () => {
+      try {
+        const hasSeenTour = await AsyncStorage.getItem('hasSeenTourGuide');
 
+        // If the user has never seen the tour and is a new user (from signup flow)
+        if (hasSeenTour === 'false' && isNewUser) {
+          // We will keep the tour guide enabled (already set in Redux by ProfileCreationLoader)
+          // Mark that we've shown the tour guide
+          await AsyncStorage.setItem('hasSeenTourGuide', 'true');
+          setHasShownTourGuide(true);
+        } else if (!isNewUser) {
+          // If not coming from signup, ensure tooltips are disabled
+          dispatch(setNewUserFlag(false));
+        }
+      } catch (error) {
+        console.error('Error checking tour guide status:', error);
+      }
+    };
+
+    checkTourGuideStatus();
+  }, []);
 
   return (
-
     <Tab.Navigator
       screenOptions={{
         tabBarStyle: {
@@ -171,13 +181,14 @@ function MyTabs({ route, naigation }) {
           height: Platform.OS === 'ios' ? 70 : 60,
           paddingTop: Platform.OS === 'ios' ? 10 : 5,
           paddingBottom: Platform.OS === 'ios' ? 10 : 0,
-          marginBottom: Platform.OS === 'ios' ? 30 : 15,
+          marginBottom: Platform.OS === 'ios' ? 30 : 5,
           width: '90%',
           marginLeft: '5%',
           borderRadius: 50,
           backgroundColor: Platform.OS === 'ios' ? 'transparent' : '#8C52FF', // Solid color for Android
           borderWidth: 0,
         },
+
         tabBarActiveTintColor: COLORS.white,
         headerShown: false,
         tabBarInactiveTintColor: COLORS.white,
@@ -204,6 +215,7 @@ function MyTabs({ route, naigation }) {
           ) : null,
       }}
     >
+
       <Tab.Screen
         options={{
           tabBarIcon: ({ tintColor, focused }) => (
@@ -327,6 +339,16 @@ function MyTabs({ route, naigation }) {
 }
 
 const App = ({ navigation }) => {
+
+  // copiolot
+  const tooltipStyle = {
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    paddingTop: 5,
+    paddingBottom: 5,
+
+  };
+
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const requestPermissions = async () => {
     const storedPermission = await AsyncStorage.getItem('permissionsGranted');
@@ -381,12 +403,38 @@ const App = ({ navigation }) => {
 
   const [callData, setCallData] = useState(null);
   const refRBSheet = useRef();
+  const refRBSheetRulletIncoming = useRef();
   const refRBSheetDecline = useRef();
+  const [rulletModalVisible, setRulletModalVisible] = useState(false);
+  const [rulletCallerData, setRulletCallerData] = useState(null);
+  const [countdown, setCountdown] = useState(10);
 
-
+  useEffect(() => {
+    let timer;
+    if (rulletModalVisible) {
+      setCountdown(10); // Reset countdown when modal is opened
+      timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            setRulletModalVisible(false); // Close modal when countdown ends
+            declineMatchReq({
+              currentUserId: rulletCallerData?.receiverId,
+              exsistingMatchId: rulletCallerData?.exsistingMatchId,
+              newMatchId: rulletCallerData?.newMatchId,
+            });
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer); // Cleanup timer on unmount or modal close
+  }, [rulletModalVisible]);
 
 
   const navigationRef = useNavigationContainerRef();
+
 
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
@@ -414,33 +462,23 @@ const App = ({ navigation }) => {
       // required on iOS only (see fetchCompletionHandler docs:
       notification.finish(PushNotificationIOS.FetchResult.NoData);
 
-      if (notification?.data?.callType === 'VIDEO') {
-        console.log('notification.data',);
-        // navigationRef.navigate('Test', {
-        //   data: notification.data
-        // });
-
-        navigationRef.reset({
-          index: 0,
-          routes: [{ name: 'Onboarding', params: { data: notification.data } }],
-        });
-        // set incoming call data to true
-        // AsyncStorage.setItem('incomingCall', 'TRUE');
-        // AsyncStorage.setItem('callData', JSON.stringify(notification.data));
-      }
-      if (notification?.data?.callType === 'AUDIO') {
-        console.log('notification.data',);
-        // navigationRef.navigate('Test', {
-        //   data: notification.data
-        // });
-
-        navigationRef.reset({
-          index: 0,
-          routes: [{ name: 'Onboarding', params: { data: notification.data } }],
-        });
-        // set incoming call data to true
-        // AsyncStorage.setItem('incomingCall', 'TRUE');
-        // AsyncStorage.setItem('callData', JSON.stringify(notification.data));
+      if (notification.userInteraction) {
+        if (notification.data?.callType === 'VIDEO') {
+          navigationRef.navigate('VideoCallScreen', {
+            currentUser: notification.data.receiverId,
+            otherUser: notification.data.callerId,
+            fromNotification: true,
+          });
+        }
+        if (notification.data?.callType === 'AUDIO') {
+          navigationRef.navigate('VoiceCallScreen', {
+            currentUser: notification.data.receiverId,
+            otherUser: notification.data.callerId,
+            otherUserName: notification.data.callerName,
+            otherUserImage: notification.data.callerImage,
+            fromNotification: true,
+          });
+        }
       }
     },
     onAction: function (notification) {
@@ -524,6 +562,26 @@ const App = ({ navigation }) => {
     type: '',
     icon: '',
   });
+
+
+  // user data handling
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+  const getUserDetails = async () => {
+    const userDetail = await getUserDetail();
+    // setUserDetail(userDetail);
+
+    if (userDetail?.data == null) {
+      console.log('<<<<<<<<<<<<<<userDetail>>>>>>>>>>>> not found');
+      setIsUserLoggedIn(false);
+    } else {
+      console.log('<<<<<<<<<<<<<<userDetail>>>>>>>>>>>>', userDetail.data);
+      setIsUserLoggedIn(true);
+    }
+  };
+
+
+  const [incomingRulletCallData, setincommingRulletCallData] = useState(null);
+
   useEffect(() => {
 
     if (Platform.OS === 'android') {
@@ -541,6 +599,11 @@ const App = ({ navigation }) => {
 
     requestUserPermission();
     getToken();
+
+    // get user data and check if user is logged in
+
+    getUserDetails();
+
 
 
     // Foreground notification handler
@@ -599,43 +662,26 @@ const App = ({ navigation }) => {
         refRBSheet.current.open();
       }
       if (remoteMessage?.data?.callType === 'RULLET-MATCH-ALERT') {
-        // ! working
-        // Alert.alert(
-        //   'Call incoming',
-        //   'You have a video call from ' + remoteMessage.data.callerName,
-        //   [
-        //     {
-        //       text: 'Cancel',
-        //       onPress: async () => {
-        //         // await declineVideoCall({
-        //         //   callerId: remoteMessage.data.callerId,
-        //         //   receiverId: remoteMessage.data.receiverId,
-        //         // });
-        //       },
-        //       style: 'cancel',
-        //     },
-        //     {
-        //       text: 'Answer',
-        //       onPress: async () => {
-        //         console.log('Answer');
-        //       },
-        //     },
-        //   ],
-        //   { cancelable: false }
-        // );
 
 
         await deleteToken({
           user_id: remoteMessage.data.receiverId,
-          new_tokens: 1
+          new_tokens: 30
         });
-        navigationRef.navigate('RulletVoiceCallScreen', {
-          currentUser: remoteMessage?.data?.receiverId,
-          otherUser: remoteMessage?.data?.callerId,
-          otherUserName: remoteMessage?.data?.callerName,
-          otherUserImage: remoteMessage?.data?.callerImage,
-          fromNotification: true,
-        });
+
+
+
+        // navigationRef.navigate('RulletVoiceCallScreen', {
+        //   currentUser: remoteMessage?.data?.receiverId,
+        //   otherUser: remoteMessage?.data?.callerId,
+        //   otherUserName: remoteMessage?.data?.callerName,
+        //   otherUserImage: remoteMessage?.data?.callerImage,
+        //   fromNotification: true,
+        // });
+        console.log('Rullet call data', remoteMessage.data);
+        setRulletCallerData(remoteMessage.data);
+        setRulletModalVisible(true);
+        // alert('bioo note' + remoteMessage?.data?.bio);
       }
       if (remoteMessage?.data?.callType === 'RULLET-BOTH-MATCH-CONFIRM') {
 
@@ -654,18 +700,21 @@ const App = ({ navigation }) => {
 
       }
       if (remoteMessage?.data?.callType === 'RULLET-MATCH-CANCELLED') {
-
+        Platform.OS === 'ios' ?
+          null
+          : alert(remoteMessage?.data?.body);
         setFalshMessageData({
           message: 'Alert',
-          description: `Your Match with ${remoteMessage.data.senderName} is cancelled \n also you lost your previous match`,
+          description: `Your Match with ${remoteMessage?.data?.senderName} is cancelled \n also you lost your previous match`,
           type: 'danger',
           icon: 'danger',
           backgroundColor: COLORS.red,
           textColor: COLORS.white,
         });
-        setFalshMessage(true);
+
+        setFalshMessage(true); // Show the flash message
         setTimeout(() => {
-          setFalshMessage(false);
+          setFalshMessage(false); // Hide the flash message after 5 seconds
         }, 5000);
 
       }
@@ -901,6 +950,19 @@ const App = ({ navigation }) => {
         //   { cancelable: false }
         // );
       }
+      else if (remoteMessage?.data?.callType === 'RULLET-CALL-ACCEPTED') {
+        console.log('notification.data', remoteMessage.data);
+        navigationRef.navigate('RulletVoiceCallScreen', {
+
+          currentUser: remoteMessage.data.receiverId,
+          otherUser: remoteMessage.data.callerId,
+          otherUserName: remoteMessage.data.callerName,
+          otherUserImage: remoteMessage.data.callerImage,
+          fromNotification: true,
+
+
+        });
+      }
 
 
 
@@ -940,12 +1002,250 @@ const App = ({ navigation }) => {
     return unsubscribe;
   }, []);
 
+  // for local calls 
+
+  useEffect(() => {
+    const triggerNetworkPromptIfNeeded = async () => {
+      const alreadyPrompted = await AsyncStorage.getItem('local_network_prompted');
+      if (!alreadyPrompted && Platform.OS === 'ios') {
+        zeroconf.scan();
+        await AsyncStorage.setItem('local_network_prompted', 'true');
+      }
+    };
+    triggerNetworkPromptIfNeeded();
+  }, []);
+
+  // call api for fateRullet
+
+  const sendRulletResponsetoOtherUser = async () => {
+    setRulletModalVisible(false);
+    const x = await getUserDetail();
+
+    console.log('currentUser', x.data.id);
+    const data = {
+      accpeted_user_id: rulletCallerData?.receiverId,
+      to_tell_user_id: rulletCallerData?.callerId,
+      // otherUserName: rulletCallerData?.callerName,
+      // otherUserImage: rulletCallerData?.callerImage,
+    }
+    console.log('data≥≥≥≥≥≥≥≥≥≥≥≥≥', data)
+
+    const res = await sendFateRulletUserResponsetoOtherUser(data);
+    console.log('res', res)
+
+    navigationRef.navigate('RulletVoiceCallScreen', {
+      currentUser: rulletCallerData?.receiverId,
+      otherUser: rulletCallerData?.callerId,
+      otherUserName: rulletCallerData?.callerName,
+      otherUserImage: rulletCallerData?.callerImage,
+      fromNotification: false,
+    });
+  }
+
 
 
 
   return (
     <>
       {falshMessage && <FlashMessages falshMessageData={falshMessageData} />}
+      <Modal
+        transparent={true}
+        visible={rulletModalVisible}
+        // visible={true}
+        animationType="slide"
+        onRequestClose={() => setRulletModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={{
+              borderRadius: 10,
+              width: '80%',
+              // height: '80%',
+              justifyContent: 'center',
+              alignItems: 'center',
+              // borderRadius: 15,
+              borderColor: COLORS.white + '50',
+              backgroundColor: COLORS.black,
+            }}
+          >
+
+            <View
+              style={{
+                // backgroundColor: 'red',
+                marginVertical: responsiveHeight(1),
+                width: responsiveWidth(80),
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <Text style={[styles.modalTitle, {
+                color: COLORS.white,
+                fontFamily: fonts.PoppinsLight,
+                fontSize: responsiveFontSize(2.2),
+                fontWeight: '500',
+              }]}>We've found you a caller</Text>
+              <View
+                style={{
+                  height: responsiveHeight(0.5),
+                  width: responsiveWidth(80),
+                  borderBottomWidth: 1,
+                  borderBottomColor: 'rgba(255, 255, 255, 0.3)',
+                  marginTop: "2%",
+                }}
+              />
+            </View>
+            <View
+              style={{
+
+                // backgroundColor: COLORS.white,
+                justifyContent: 'center',
+                alignItems: 'center',
+                alignContent: 'center',
+                flexDirection: 'row',
+              }}
+            >
+              <Image
+                // source={Images.ApplogoSearch}
+                source={{
+                  uri: rulletCallerData?.callerImage || 'default_image_uri',
+                }}
+                style={{
+                  width: responsiveWidth(25),
+                  height: responsiveWidth(25),
+                  alignSelf: 'center',
+                  borderRadius: 45,
+                  backgroundColor: COLORS.white,
+                  marginVertical: responsiveHeight(1),
+                }}
+                resizeMode="cover"
+              />
+            </View>
+
+            <Text style={[styles.modalDescription, {
+              marginTop: responsiveHeight(1),
+              fontFamily: fonts.PoppinsMedium,
+              fontSize: responsiveFontSize(2),
+              color: COLORS.white,
+            }]}>
+              {rulletCallerData?.callerName || "No Name Available"}
+            </Text>
+
+            <Text style={[styles.modalDescription, {
+              fontSize: responsiveFontSize(1.5),
+              color: COLORS.white,
+            }]}>
+              {rulletCallerData?.bio || "No Bio Available"}
+            </Text>
+
+            <Text style={[styles.modalDescription, {
+              fontSize: responsiveFontSize(2),
+              color: COLORS.white,
+              marginTop: responsiveHeight(2),
+              fontWeight: '500',
+            }]}>Closing in</Text>
+
+            <View
+              style={{
+                marginBottom: responsiveHeight(2),
+                flexDirection: 'row',
+                alignItems: 'center',
+                alignSelf: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={[styles.modalDescription, {
+                fontSize: responsiveFontSize(3),
+                color: COLORS.white,
+                fontWeight: '900',
+                marginRight: responsiveWidth(.5),
+              }]}>{countdown}</Text>
+              <Text style={[styles.modalDescription, {
+                fontSize: responsiveFontSize(2),
+                color: COLORS.white,
+                fontWeight: '500',
+              }]}>s</Text>
+            </View>
+
+            <View
+              style={{
+                // height: responsiveHeight(0.5),
+                width: responsiveWidth(80),
+                borderBottomWidth: 1,
+                borderBottomColor: 'rgba(255, 255, 255, 0.3)',
+                // marginBottom: "3%",
+              }}
+            />
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, {
+                  backgroundColor: '#FF4E4E',
+                  borderRadius: 15,
+                }]}
+                onPress={() => {
+                  setRulletModalVisible(false);
+                  declineMatchReq({
+                    currentUserId: rulletCallerData?.receiverId,
+                    exsistingMatchId: rulletCallerData?.exsistingMatchId,
+                    newMatchId: rulletCallerData?.newMatchId,
+                  });
+                }}
+              >
+                <Text style={styles.modalButtonText}>Reject</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, {
+                  backgroundColor: '#6D42BD', // Changed to match the image's purple color
+                  borderRadius: 15,
+                }]}
+                onPress={() => {
+                  sendRulletResponsetoOtherUser()
+                  // setRulletModalVisible(false);
+                  // navigationRef.navigate('RulletVoiceCallScreen', {
+                  //   currentUser: rulletCallerData?.receiverId,
+                  //   otherUser: rulletCallerData?.callerId,
+                  //   otherUserName: rulletCallerData?.callerName,
+                  //   otherUserImage: rulletCallerData?.callerImage,
+                  //   fromNotification: true,
+                  // });
+                }}
+              >
+                <Text style={styles.modalButtonText}>Accept</Text>
+              </TouchableOpacity>
+            </View>
+
+
+          </View>
+        </View>
+      </Modal >
+      <RBSheet
+        ref={refRBSheetRulletIncoming}
+        height={responsiveHeight(30)}
+        openDuration={250}
+        closeOnDragDown={true}
+        closeOnPressMask={true}
+        customStyles={{
+          container: {
+            backgroundColor: COLORS.red,
+            borderRadius: 20,
+            // position: 'absolute',
+            // top: Platform.OS === 'ios' ? responsiveHeight(8) : responsiveHeight(2),
+            // width: responsiveWidth(95),
+            alignSelf: 'center',
+            justifyContent: 'center',
+            // padding: responsiveWidth(2),
+            borderWidth: 1,
+            borderColor: COLORS.grey + '50',
+            height: responsiveHeight(30),
+          },
+        }}>
+        <TouchableOpacity>
+          <Text>
+            dcsdsccdscdsscd
+          </Text>
+        </TouchableOpacity>
+
+
+      </RBSheet>
       <RBSheet
         ref={refRBSheet}
         height={Platform.OS === 'ios' ? responsiveHeight(12) : responsiveHeight(13)}
@@ -1138,71 +1438,135 @@ const App = ({ navigation }) => {
 
       </RBSheet>
 
-      <Provider store={store}>
-        <NavigationContainer ref={navigationRef} independent={true}>
-          <Stack.Navigator
-            // slideAnimationEnabled={true}
-            // slideAnimationDuration={2000}
-            // slideAnimationType="timing"
-            screenOptions={{ header: () => null }}>
-            {/* sample code added  */}
-            {/* <Stack.Screen name="VideoCallScreen_test" component={VideoCallScreen_test} /> */}
-            {/* <Stack.Screen name="Onboarding" component={Onboarding} />
-            <Stack.Screen name="LoadingForQs_test" component={LoadingForQs_test} /> */}
-            <Stack.Screen name="OnboardingVoiceNotesIOS" component={OnboardingVoiceNotesIOS} />
-            <Stack.Screen name="LoadingForQs" component={LoadingForQs} />
-            <Stack.Screen name="Test" component={Test} />
-            <Stack.Screen name="OnboardingVoiceNotes" component={OnboardingVoiceNotes} />
-            <Stack.Screen name="OnboardingVoiceNotesTest" component={OnboardingVoiceNotesTest} />
-            <Stack.Screen name="MyTabs" component={MyTabs} />
-            <Stack.Screen name="Onboarding_signups" component={Onboarding_signups} />
-            <Stack.Screen name="Onboarding_Continue" component={Onboarding_Continue} />
-            <Stack.Screen name="OnboardingQuestions" component={OnboardingQuestions} />
-            <Stack.Screen name="OnboardingQuestions_Redux" component={OnboardingQuestions_Redux} />
-            <Stack.Screen name="ChatList_New" component={ChatList_New} />
-            <Stack.Screen name="Chats_New" component={Chats_New} />
-            <Stack.Screen name="VideoCallScreen" component={VideoCallScreen} />
-            <Stack.Screen name="HomePage1" component={HomePage1} />
-            <Stack.Screen name="SignUp_N" component={SignUp_N} />
-            <Stack.Screen name="Login_N" component={Login_N} />
-            <Stack.Screen name="ProfilePreference" component={ProfilePreference} />
-            <Stack.Screen name="LocationPermission" component={LocationPermission} />
-            <Stack.Screen name="AddYourPhotos" component={AddYourPhotos} />
-            <Stack.Screen name="AddYourPhotos_Redux" component={AddYourPhotos_Redux} />
-            <Stack.Screen name="BasicProfileInfo" component={BasicProfileInfo} />
-            <Stack.Screen name="ForgotPassword_N" component={ForgotPassword_N} />
-            <Stack.Screen name="VerificationOTP" component={VerificationOTP} />
-            <Stack.Screen name="CreateNewPassword" component={CreateNewPassword} />
-            <Stack.Screen name="ChatCallList" component={ChatCallList} />
-            <Stack.Screen name="Chat" component={Chat} />
-            <Stack.Screen name="Subscription1" component={Subscription1} />
-            <Stack.Screen name="PurchaseTokens" component={PurchaseTokens} />
-            <Stack.Screen name="ChatRoom" component={ChatRoom} />
-            <Stack.Screen name="ViewProfile" component={ViewProfile} />
-            <Stack.Screen name="EditProfile" component={EditProfile} />
-            <Stack.Screen name="PricingandPlan" component={PricingandPlan} />
-            <Stack.Screen name="UpdatePasswords" component={UpdatePasswords} />
-            <Stack.Screen name="RulletCalling" component={RulletCalling} />
-            <Stack.Screen name="VideoCallScreen_test" component={VideoCallScreen_test} />
-            <Stack.Screen name="UpdateProfilePreference" component={UpdateProfilePreference} />
-            <Stack.Screen name="VoiceCallScreen" component={VoiceCallScreen} />
-            <Stack.Screen name="Insights" component={Insights} />
-            <Stack.Screen name="RulletVoiceCallScreen" component={RulletVoiceCallScreen} />
-            <Stack.Screen name="FateRulletVoiceCallScreen" component={FateRulletVoiceCallScreen} />
-            <Stack.Screen name="DecisionMatch" component={DecisionMatch} />
+      <WalkthroughProvider>
+        <Provider store={store}>
+          <NavigationContainer ref={navigationRef} independent={true}>
+            <Stack.Navigator
+              slideAnimationEnabled={true}
+              slideAnimationDuration={2000}
+              slideAnimationType="timing"
+              screenOptions={{ header: () => null }}>
 
-            {/* <Stack.Screen name="Login" component={Login} /> */}
-            {/* <Stack.Screen name="OnboardingSlider" component={OnboardingSlider} />
-        <Stack.Screen name="SignUp" component={SignUp} />
 
-        <Stack.Screen name="VerifyOTP" component={VerifyOTP} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
-        <Stack.Screen name="Test" component={Test} /> */}
-          </Stack.Navigator>
-        </NavigationContainer>
-      </Provider>
+              <Stack.Screen name="Onboarding" component={Onboarding} />
+              <Stack.Screen name="TestVoice" component={TestVoice} />
+              <Stack.Screen name="Test" component={Test} />
+              <Stack.Screen name="TestInstagramNew" component={TestInstagramNew} />
+              <Stack.Screen name="TestInstagram" component={TestInstagram} />
+              <Stack.Screen name="ConnectSpotify" component={ConnectSpotify} />
+              <Stack.Screen name="SignUp_N" component={SignUp_N} />
+              <Stack.Screen name="Login_N" component={Login_N} />
+              <Stack.Screen name="Onboarding_signups" component={Onboarding_signups} />
+              <Stack.Screen name="Onboarding_Permissions" component={Onboarding_Permissions} />
+              <Stack.Screen name="BasicProfileInfo" component={BasicProfileInfo} />
+              <Stack.Screen name="OnboardingQuestions_Redux" component={OnboardingQuestions_Redux} />
+              <Stack.Screen name="LoadingForQs_test" component={LoadingForQs_test} />
+              <Stack.Screen name="AddYourPhotos_Redux" component={AddYourPhotos_Redux} />
+              <Stack.Screen name="ProfilePreference" component={ProfilePreference} />
+              <Stack.Screen name="OnboardingVoiceNotesTest" component={OnboardingVoiceNotesTest} />
+              <Stack.Screen
+                name="ProfileCreationLoader"
+                component={ProfileCreationLoader}
+                options={{
+                  gestureEnabled: false, // Disable swipe gestures on iOS
+                  headerLeft: () => null, // Remove back button from header
+                }}
+              />
+              <Stack.Screen name="OnboardingVoiceNotesIOS" component={OnboardingVoiceNotesIOS} />
+              <Stack.Screen name="OnboardingVoiceNotesIOSUpdate" component={OnboardingVoiceNotesIOSUpdate} />
+              <Stack.Screen name="LoadingForQs" component={LoadingForQs} />
+              <Stack.Screen name="OnboardingVoiceNotes" component={OnboardingVoiceNotes} />
+              <Stack.Screen name="MyTabs" component={MyTabs} />
+              <Stack.Screen name="OnboardingQuestions" component={OnboardingQuestions} />
+              <Stack.Screen name="ChatList_New" component={ChatList_New} />
+              <Stack.Screen name="Chats_New" component={Chats_New} />
+              <Stack.Screen name="VideoCallScreen" component={VideoCallScreen} />
+              <Stack.Screen name="HomePage1" component={HomePage1} />
+              <Stack.Screen name="LocationPermission" component={LocationPermission} />
+              <Stack.Screen name="AddYourPhotos" component={AddYourPhotos} />
+              <Stack.Screen name="ForgotPassword_N" component={ForgotPassword_N} />
+              <Stack.Screen name="VerificationOTP" component={VerificationOTP} />
+              <Stack.Screen name="CreateNewPassword" component={CreateNewPassword} />
+              <Stack.Screen name="ChatCallList" component={ChatCallList} />
+              <Stack.Screen name="Chat" component={Chat} />
+              <Stack.Screen name="Subscription1" component={Subscription1} />
+              <Stack.Screen name="EditProfileNew" component={EditProfileNew} />
+              <Stack.Screen name="PurchaseTokens" component={PurchaseTokens} />
+              <Stack.Screen name="PurchaseTokensAndroid" component={PurchaseTokensAndroid} />
+              <Stack.Screen name="ChatRoom" component={ChatRoom} />
+              <Stack.Screen name="ViewProfile" component={ViewProfile} />
+              <Stack.Screen name="EditProfile" component={EditProfile} />
+              <Stack.Screen name="PricingandPlan" component={PricingandPlan} />
+              <Stack.Screen name="PricingandPlanAndroid" component={PricingandPlanAndroid} />
+              <Stack.Screen name="UpdatePasswords" component={UpdatePasswords} />
+              <Stack.Screen name="RulletCalling" component={RulletCalling} />
+              <Stack.Screen name="VideoCallScreen_test" component={VideoCallScreen_test} />
+              <Stack.Screen name="UpdateProfilePreference" component={UpdateProfilePreference} />
+              <Stack.Screen name="VoiceCallScreen" component={VoiceCallScreen} />
+              <Stack.Screen name="Insights" component={Insights} />
+              <Stack.Screen name="RulletVoiceCallScreen" component={RulletVoiceCallScreen} />
+              <Stack.Screen name="FateRulletVoiceCallScreen" component={FateRulletVoiceCallScreen} />
+              <Stack.Screen name="DecisionMatch" component={DecisionMatch} />
+              <Stack.Screen name="ChooseHowToAnswer" component={ChooseHowToAnswer} />
+              <Stack.Screen name="VapiWebView" component={VapiWebView} />
+              <Stack.Screen name="GetInstantAccess" component={GetInstantAccess} />
+              <Stack.Screen name="NewWaitingListScreen1" component={NewWaitingListScreen1} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </Provider>
+      </WalkthroughProvider>
+
+
+
     </>
   );
 };
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+
+  },
+  modalTitle: {
+    fontSize: responsiveFontSize(2),
+    fontWeight: 'bold',
+
+    color: COLORS.dark,
+    fontFamily: fonts.PoppinsMedium,
+  },
+  modalDescription: {
+    fontSize: responsiveFontSize(1.8),
+    textAlign: 'center',
+    color: COLORS.dark,
+    fontFamily: fonts.PoppinsRegular,
+    marginBottom: responsiveWidth(1),
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '90%',
+    alignSelf: 'center',
+    paddingVertical: responsiveHeight(1),
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: 5,
+    paddingVertical: 10,
+    borderRadius: 15,
+    alignItems: 'center',
+    fontFamily: fonts.PoppinsMedium,
+
+  },
+  modalButtonText: {
+    color: COLORS.white,
+    fontSize: responsiveFontSize(1.8),
+    fontFamily: fonts.PoppinsMedium,
+  },
+});
 
 export default withIAPContext(App);

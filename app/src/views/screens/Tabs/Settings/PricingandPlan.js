@@ -1,517 +1,473 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { act, useEffect, useState } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
-  FlatList,
-  Animated,
-  StyleSheet,
-  Image,
+  ScrollView,
   TouchableOpacity,
-  TextInput,
+  ActivityIndicator,
   ImageBackground,
+  SafeAreaView,
   Platform,
+  Alert,
+  Linking,
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+
+import {
+  initConnection,
+  getSubscriptions,
+  requestSubscription,
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+  finishTransaction,
+  useIAP,
+} from 'react-native-iap';
+import { Link, useIsFocused } from '@react-navigation/native';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import SimpleLineIcon from 'react-native-vector-icons/SimpleLineIcons';
-
-import Images from '../../../../consts/Images';
-import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
+import COLORS from '../../../../consts/colors';
+import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import { addToken, updateUserSubscription } from '../../../../Services/Auth/SignupService';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
+import Images from '../../../../consts/Images';
+import SimpleLineIcon from 'react-native-vector-icons/SimpleLineIcons';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
-import LinearGradient from 'react-native-linear-gradient';
-import AppTextLogo from '../../../../components/AppLogo/AppTextLogo';
-import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
-import { getMatchUsers, getUsersforJokerCard } from '../../../../Services/Auth/SignupService';
-import RBSheet from 'react-native-raw-bottom-sheet';
-import { BlurView } from '@react-native-community/blur';
-import { SliderBox } from "react-native-image-slider-box";
-import { ScrollView } from 'react-native-gesture-handler';
-import { height } from '../../../../consts/Dimension';
 
 
+const PurchaseScreen = ({ route, navigation }) => {
+  const isFocused = useIsFocused();
+  const { currentTokens } = route?.params || {};
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [activeSubscription, setActiveSubscription] = useState(null); // State for subscription status
+  const [userDetail, setUserDetail] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Use the useIAP hook to get access to available purchases
+  const { getAvailablePurchases } = useIAP();
 
-
-function HomePage({ route, navigation }) {
-
-  const pricing_feature = [
-    {
-      id: 1,
-      title: 'No countdown for match allocation',
-    },
-    {
-      id: 2,
-      title: '2 extra matches in match pool',
-    },
-    {
-      id: 3,
-      title: '10 Disqualifications allowed per day',
-    },
-    {
-      id: 4,
-      title: 'Joker card',
-    },
-  ];
+  const getUserDetails = async () => {
+    const userDetail = await getUserDetail();
+    setUserDetail(userDetail);
+    console.log('userDetail_______', userDetail);
+  };
   useEffect(() => {
+    if (isFocused) {
+      getUserDetails();
+    }
+  }, [isFocused]);
 
-  }, []);
+  // Separate the initialization effect to ensure it runs only once
+  useEffect(() => {
+    let purchaseUpdateSubscription;
+    let purchaseErrorSubscription;
+
+    const initializeIAP = async () => {
+      if (isInitialized) return; // Skip if already initialized
+
+      try {
+        setLoading(true);
+        await initConnection();
+        const subscriptionIds = ['silvermonthly12345_new', 'goldmonthly12345_new', 'platinummonthly12345_new'];
+        const products = await getSubscriptions({ skus: subscriptionIds });
+        setSubscriptions(products);
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('IAP initialization error', error);
+        setError('Failed to initialize in-app purchases');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isFocused && !isInitialized) {
+      initializeIAP();
+
+      // Set up listeners only once when initializing
+      purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
+        try {
+          const receipt = purchase.transactionReceipt;
+          if (receipt) {
+            // Verify receipt with your server and unlock content
+            await finishTransaction({ purchase, isConsumable: false });
+
+            // setLoading(true);
+            // const x = await getUserDetail();
+            // console.log('x <<<<<< ', x);
+            // const data = {
+            //   user_id: x?.data?.id,
+            //   subscription_type: purchase?.productId,
+            // }
+
+
+            // const res = await updateUserSubscription(data);
+            // console.log('res_______', res);
+            // if (res?.error === false) {
+            //   await storeUserDetail(res.data);
+            //   setTimeout(() => {
+            //     navigation.navigate('Home');
+            //   }, 2000);
+            // }
+            // setLoading(false);
+
+
+
+
+          }
+        } catch (error) {
+          console.error('Purchase update error', error);
+        }
+      });
+
+      purchaseErrorSubscription = purchaseErrorListener((error) => {
+        console.error('Purchase error', error);
+      });
+    }
+
+    return () => {
+      // Clean up listeners when component unmounts
+      if (purchaseUpdateSubscription) {
+        purchaseUpdateSubscription.remove();
+      }
+      if (purchaseErrorSubscription) {
+        purchaseErrorSubscription.remove();
+      }
+    };
+  }, [isFocused, isInitialized]);
+
+  const handleSubscriptionPurchase = async (sku) => {
+    try {
+      setLoading(true);
+      const purchase = await requestSubscription({
+        sku
+      });
+      console.log('purchase', purchase);
+      const x = await getUserDetail();
+      console.log('x <<<<<< ', x);
+      const data = {
+        user_id: x?.data?.id,
+        subscription_type: purchase?.productId,
+      }
+
+
+      const res = await updateUserSubscription(data);
+      console.log('res_______', res);
+      if (res?.error === false) {
+        await storeUserDetail(res.data);
+        setTimeout(() => {
+          navigation.navigate('Home');
+        }, 2000);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Subscription purchase error>>>>>>', error);
+      Alert.alert('Error', 'Failed to process subscription request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (error) {
+    return (
+      <View>
+        <Text>Error fetching products: {error}</Text>
+      </View>
+    );
+  }
 
   return (
-    <GradientBackground>
-      <SafeAreaView
-        style={{
-          flex: 1,
-        }}>
-        <ScrollView>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              width: responsiveWidth(90),
-              marginTop: Platform.OS === 'ios' ? responsiveHeight(0) : responsiveHeight(2),
-              alignItems: 'center',
-              paddingHorizontal: responsiveWidth(2),
-              paddingVertical: responsiveHeight(2),
-            }}>
-            <TouchableOpacity
-              onPress={() => {
-                navigation.goBack();
 
+    <GradientBackground style={{ flex: 1, backgroundColor: 'white' }}>
+      <SafeAreaView
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            // marginTop: responsiveWidth(4),
+            alignItems: 'center',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{
+                padding: 10,
+                paddingHorizontal: 12,
+                marginRight: 12,
               }}
             >
-              <Icon name="chevron-left"
-                style={{
-                  marginRight: responsiveWidth(2),
-                  padding: responsiveWidth(2),
-                }}
-                size={responsiveFontSize(3)} color={COLORS.white} />
+              <Icon
+                name="chevron-left"
+                style={{ padding: 4, alignSelf: 'center' }}
+                size={22}
+                color={COLORS.white}
+              />
             </TouchableOpacity>
             <Text
               style={{
-                color: COLORS.white,
                 fontSize: responsiveFontSize(2.5),
-                fontFamily: fonts.JostMedium,
-              }}>
-              {' '}Pricing
-            </Text>
-
-          </View>
-
-
-
-
-          <View
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.16)',
-              padding: responsiveWidth(2),
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.16)',
-            }}
-          >
-            <SimpleLineIcon
-              name="badge"
-              size={responsiveFontSize(3)}
-              color={COLORS.white}
-            />
-            <Text
-              style={{
                 color: COLORS.white,
-                fontSize: responsiveFontSize(2.2),
-                fontFamily: fonts.JostMedium,
-                marginTop: responsiveHeight(1),
-              }}>
-              SILVER
-            </Text>
-            <Text
-              style={{
-                color: COLORS.white,
-
-                marginTop: responsiveHeight(1),
-              }}>
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(3.5),
-                  fontWeight: 'bold',
-                }}
-              >$9.99</Text>  <Text
-                style={{
-                  fontSize: responsiveFontSize(2.5),
-                  fontWeight: '500',
-                }}
-              >Per month</Text>
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                padding: responsiveWidth(2),
-                borderRadius: 10,
-                width: responsiveWidth(42),
-                alignContent: 'center',
-                justifyContent: 'space-between',
-                marginTop: responsiveHeight(1),
+                fontFamily: fonts.PoppinsMedium,
               }}
             >
-              <Icon
-                name="rocket"
-                size={responsiveFontSize(2.5)}
-                color={COLORS.white}
-              />
+              Pricing
+            </Text>
+          </View>
+
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  setLoading(true);
+                  const restoredPurchases = await getAvailablePurchases();
+
+                  if (restoredPurchases && restoredPurchases.length > 0) {
+                    // Check if any subscriptions were restored
+                    const restoredSubscription = restoredPurchases.find(purchase =>
+                      purchase.productId && ['silvermonthly12345_new', 'goldmonthly12345_new', 'platinummonthly12345_new'].includes(purchase.productId)
+                    );
+
+                    if (restoredSubscription) {
+                      const x = await getUserDetail();
+                      const data = {
+                        user_id: x?.data?.id,
+                        subscription_type: restoredSubscription.productId,
+                      };
+
+                      const res = await updateUserSubscription(data);
+                      if (res?.error === false) {
+                        await storeUserDetail(res.data);
+                        Alert.alert('Success', 'Your purchase has been restored successfully.');
+                        getUserDetails(); // Refresh user details to show active subscription
+                      }
+                    } else {
+                      Alert.alert('No Purchases', 'No previous purchases found to restore.');
+                    }
+                  } else {
+                    Alert.alert('No Purchases', 'No previous purchases found to restore.');
+                  }
+                } catch (error) {
+                  console.error('Restore purchase error:', error);
+                  Alert.alert('Error', 'Failed to restore purchases. Please try again.');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              style={{
+                padding: 10,
+                marginRight: 15,
+              }}
+            >
               <Text
                 style={{
-                  fontSize: responsiveFontSize(2),
-                  fontWeight: '500',
                   color: COLORS.white,
+                  fontFamily: fonts.PoppinsMedium,
+                  fontSize: responsiveFontSize(1.8),
                 }}
               >
-                Includes Bronze
+                Restore
               </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-            </View>
-            <View
-              style={{
-                width: responsiveWidth(88),
-                flexDirection: 'row',
-                borderBottomWidth: 1,
-                borderBottomColor: 'rgba(255, 255, 255, 0.16)',
-                marginVertical: responsiveHeight(2),
-              }}
-            >
-            </View>
-            {
-              pricing_feature.map((item, index) => {
-                return (<View
-                  key={index}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: responsiveHeight(1),
-                  }}
-                >
 
-                  <Icon
-                    name="star"
-                    size={responsiveFontSize(2.5)}
-                    color={COLORS.white}
-                  />
-                  <Text
-                    style={{
-                      fontSize: responsiveFontSize(2),
-                      fontWeight: '500',
-                      color: COLORS.white,
-                      marginLeft: responsiveWidth(2),
-                    }}
-                  >
-                    {
-                      item.title
-                    }
-                  </Text>
-                </View>)
-              })
-            }
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header and Back Button */}
 
-            <PrimaryButton
-              title="Subscribe Now"
-              loading={false}
-              onPress={() => {
-                console.log('Send message');
-              }}
-              style={{
-                marginTop: responsiveHeight(0),
-                alignSelf: 'center',
-                width: responsiveWidth(90),
-              }}
-              backgroundColor={COLORS.white}
-              textColor={COLORS.primary}
-            />
 
-          </View>
-          <View
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.16)',
-              padding: responsiveWidth(2),
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.16)',
-              marginTop: responsiveHeight(2),
-            }}
-          >
-            <SimpleLineIcon
-              name="badge"
-              size={responsiveFontSize(3)}
+
+          {/* Activity Indicator */}
+          {loading && (
+            <ActivityIndicator
+              size="large"
               color={COLORS.white}
-            />
-            <Text
               style={{
-                color: COLORS.white,
-                fontSize: responsiveFontSize(2.2),
-                fontFamily: fonts.JostMedium,
-                marginTop: responsiveHeight(1),
-              }}>
-              SILVER
-            </Text>
-            <Text
-              style={{
-                color: COLORS.white,
-
-                marginTop: responsiveHeight(1),
-              }}>
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(3.5),
-                  fontWeight: 'bold',
-                }}
-              >$9.99</Text>  <Text
-                style={{
-                  fontSize: responsiveFontSize(2.5),
-                  fontWeight: '500',
-                }}
-              >Per month</Text>
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                padding: responsiveWidth(2),
-                borderRadius: 10,
-                width: responsiveWidth(42),
-                alignContent: 'center',
-                justifyContent: 'space-between',
-                marginTop: responsiveHeight(1),
-              }}
-            >
-              <Icon
-                name="rocket"
-                size={responsiveFontSize(2.5)}
-                color={COLORS.white}
-              />
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(2),
-                  fontWeight: '500',
-                  color: COLORS.white,
-                }}
-              >
-                Includes Bronze
-              </Text>
-
-            </View>
-            <View
-              style={{
-                width: responsiveWidth(88),
-                flexDirection: 'row',
-                borderBottomWidth: 1,
-                borderBottomColor: 'rgba(255, 255, 255, 0.16)',
-                marginVertical: responsiveHeight(2),
-              }}
-            >
-            </View>
-            {
-              pricing_feature.map((item, index) => {
-                return (<View
-                  key={index}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: responsiveHeight(1),
-                  }}
-                >
-
-                  <Icon
-                    name="star"
-                    size={responsiveFontSize(2.5)}
-                    color={COLORS.white}
-                  />
-                  <Text
-                    style={{
-                      fontSize: responsiveFontSize(2),
-                      fontWeight: '500',
-                      color: COLORS.white,
-                      marginLeft: responsiveWidth(2),
-                    }}
-                  >
-                    {
-                      item.title
-                    }
-                  </Text>
-                </View>)
-              })
-            }
-
-            <PrimaryButton
-              title="Subscribe Now"
-              loading={false}
-              onPress={() => {
-                console.log('Send message');
-              }}
-              style={{
-                marginTop: responsiveHeight(0),
+                marginTop: 45,
                 alignSelf: 'center',
-                width: responsiveWidth(90),
               }}
-              backgroundColor={COLORS.white}
-              textColor={COLORS.primary}
             />
+          )}
 
-          </View>
-          <View
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.16)',
-              padding: responsiveWidth(2),
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.16)',
-              marginTop: responsiveHeight(2),
-            }}
-          >
-            <SimpleLineIcon
-              name="badge"
-              size={responsiveFontSize(3)}
-              color={COLORS.white}
-            />
-            <Text
-              style={{
-                color: COLORS.white,
-                fontSize: responsiveFontSize(2.2),
-                fontFamily: fonts.JostMedium,
-                marginTop: responsiveHeight(1),
+          {/* Product List */}
+          {!loading && subscriptions.length > 0 ? (
+            <>
+              <View style={{
+                padding: 10,
+
               }}>
-              SILVER
-            </Text>
-            <Text
-              style={{
-                color: COLORS.white,
+                {/* {subscriptions.reverse().map((product, index) => ( */}
+                {
+                  // order subscriptions based upon price
+                  subscriptions.sort((a, b) => {
+                    return a.price - b.price;
+                  }).map((product, index) => (
+                    <View
+                      key={index}
+                      style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                        padding: responsiveWidth(2),
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255, 255, 255, 0.16)',
+                        marginTop: responsiveWidth(3)
+                      }}
+                    >
+                      <SimpleLineIcon
+                        name="badge"
+                        size={responsiveFontSize(3)}
+                        color={COLORS.white}
+                      />
+                      <Text
+                        style={{
+                          color: COLORS.white,
+                          fontSize: responsiveFontSize(2.2),
+                          fontFamily: fonts.JostMedium,
+                          marginTop: responsiveHeight(1),
+                        }}>
+                        {product?.title}
+                      </Text>
+                      <Text
+                        style={{
+                          color: COLORS.white,
 
-                marginTop: responsiveHeight(1),
-              }}>
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(3.5),
-                  fontWeight: 'bold',
-                }}
-              >$9.99</Text>  <Text
-                style={{
-                  fontSize: responsiveFontSize(2.5),
-                  fontWeight: '500',
-                }}
-              >Per month</Text>
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                padding: responsiveWidth(2),
-                borderRadius: 10,
-                width: responsiveWidth(42),
-                alignContent: 'center',
-                justifyContent: 'space-between',
-                marginTop: responsiveHeight(1),
-              }}
-            >
-              <Icon
-                name="rocket"
-                size={responsiveFontSize(2.5)}
-                color={COLORS.white}
-              />
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(2),
-                  fontWeight: '500',
-                  color: COLORS.white,
-                }}
-              >
-                Includes Bronze
-              </Text>
+                          marginTop: responsiveHeight(1),
+                        }}>
+                        <Text
+                          style={{
+                            fontSize: responsiveFontSize(3.5),
+                            fontWeight: 'bold',
+                          }}
+                        >
+                          {product?.localizedPrice}
+                        </Text>  <Text
+                          style={{
+                            fontSize: responsiveFontSize(2.5),
+                            fontWeight: '400',
+                          }}
+                        >Per Week</Text>
+                      </Text>
 
-            </View>
-            <View
-              style={{
-                width: responsiveWidth(88),
-                flexDirection: 'row',
-                borderBottomWidth: 1,
-                borderBottomColor: 'rgba(255, 255, 255, 0.16)',
-                marginVertical: responsiveHeight(2),
-              }}
-            >
-            </View>
-            {
-              pricing_feature.map((item, index) => {
-                return (<View
-                  key={index}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: responsiveHeight(1),
-                  }}
-                >
+                      <View
+                        style={{
+                          width: responsiveWidth(80),
+                          flexDirection: 'row',
+                          borderBottomWidth: 1,
+                          borderBottomColor: 'rgba(255, 255, 255, 0.16)',
+                          marginVertical: responsiveHeight(2),
+                          alignSelf: 'center',
+                        }}
+                      >
+                      </View>
+                      <View
 
-                  <Icon
-                    name="star"
-                    size={responsiveFontSize(2.5)}
-                    color={COLORS.white}
-                  />
-                  <Text
-                    style={{
-                      fontSize: responsiveFontSize(2),
-                      fontWeight: '500',
-                      color: COLORS.white,
-                      marginLeft: responsiveWidth(2),
-                    }}
-                  >
-                    {
-                      item.title
-                    }
-                  </Text>
-                </View>)
-              })
-            }
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          marginBottom: responsiveHeight(1),
+                        }}
+                      >
 
-            <PrimaryButton
-              title="Subscribe Now"
-              loading={false}
-              onPress={() => {
-                console.log('Send message');
-              }}
-              style={{
-                marginTop: responsiveHeight(0),
-                alignSelf: 'center',
-                width: responsiveWidth(90),
-              }}
-              backgroundColor={COLORS.white}
-              textColor={COLORS.primary}
-            />
+                        <Icon
+                          name="check-circle"
+                          size={responsiveFontSize(2.5)}
+                          color={COLORS.white}
+                        />
+                        <Text
+                          style={{
+                            fontSize: responsiveFontSize(2),
+                            fontWeight: '500',
+                            color: COLORS.white,
+                            marginLeft: responsiveWidth(2),
+                          }}
+                        >
+                          {
+                            // find space and replace with \n
+                            product?.description.split(',').join('\n')
 
-          </View>
+                            // product?.productId === 'silvermonthly12345_new' ?
+                            //   `Silver ${'\n'}300 tokens` :
+                            //   product?.productId === 'goldmonthly12345_new' ?
+                            //     `Gold ${'\n'}800 tokens` :
+                            //     `Monthly ${'\n'}1700 tokens`
+                          }
+                        </Text>
+                      </View>
 
+                      {
+                        userDetail?.data?.subscription_type === product?.productId ? (
+                          <PrimaryButton
+                            title="Active (Tap to Manage)"
+                            loading={false}
+                            onPress={async () => {
+                              // open up the subscription setting screen
+                              const url = Platform.select({
+                                ios: 'https://apps.apple.com/account/subscriptions',
+                                android: 'market://details?id=com.yourapp.package',
+                              });
+                              Linking.openURL(url);
+                            }}
+                            style={{
+                              marginTop: responsiveHeight(0),
+                              alignSelf: 'center',
+                              width: responsiveWidth(80),
+                            }}
+                            backgroundColor={COLORS.secondary2}
+                            textColor={COLORS.white}
+                          />
+                        ) :
+                          <PrimaryButton
+                            title="Subscribe Now"
+                            loading={false}
+                            onPress={async () => {
+                              await setActiveSubscription(product.productId);
+                              await handleSubscriptionPurchase(product.productId);
 
-
-
-
+                              // const data = await getUserDetail();
+                              // console.log('data', JSON.stringify(product, null, 2));
+                            }}
+                            style={{
+                              marginTop: responsiveHeight(0),
+                              alignSelf: 'center',
+                              width: responsiveWidth(80),
+                            }}
+                            backgroundColor={COLORS.white}
+                            textColor={COLORS.primary}
+                          />
+                      }
 
 
 
+                    </View>
+                  ))}
+              </View>
 
 
 
+            </>
+
+          ) : (
+            <Text style={{
+              display: loading ? 'none' : 'flex',
+              padding: 12
+            }}>No products available.</Text>
+          )}
+          <View style={{
+            height: responsiveHeight(10),
+            width: '100%',
+          }}
+          />
         </ScrollView>
       </SafeAreaView>
-    </GradientBackground >
-  );
-}
-const styles = StyleSheet.create({
 
-});
-export default HomePage;
+    </GradientBackground>
+
+  );
+};
+
+export default PurchaseScreen;
+

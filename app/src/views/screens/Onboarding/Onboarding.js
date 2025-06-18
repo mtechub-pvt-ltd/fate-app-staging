@@ -1,18 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
   SafeAreaView,
   Animated,
   StyleSheet,
   Image,
-  TouchableOpacity,
   Easing,
   Platform,
   Alert,
 
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 import COLORS from '../../../consts/colors';
 import Images from '../../../consts/Images';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,15 +20,12 @@ import GradientBackground from '../../../components/MainContainer/GradientBackgr
 import {
   responsiveHeight,
   responsiveWidth,
-  responsiveFontSize,
 } from 'react-native-responsive-dimensions';
-import fonts from '../../../consts/fonts';
-import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
-  getUserInsights,
   addToken,
   getUserByID
 } from '../../../Services/Auth/SignupService';
+import messaging from '@react-native-firebase/messaging';
 
 
 
@@ -58,7 +51,8 @@ function Onboarding({ route, navigation }) {
         var userDetail = await getUserDetail()
         const data = {
           user_id: userDetail.data.id,
-          new_tokens: 1
+          // new_tokens: 1
+          new_tokens: 30
         }
         const res = await addToken(data);
       }
@@ -67,7 +61,8 @@ function Onboarding({ route, navigation }) {
       var userDetail = await getUserDetail()
       const data = {
         user_id: userDetail.data.id,
-        new_tokens: 1
+        // new_tokens: 1
+        new_tokens: 30
       }
       const res = await addToken(data);
     }
@@ -111,80 +106,135 @@ function Onboarding({ route, navigation }) {
       ).start();
     };
 
+    // Start the logo animation effect
     animateGlow();
 
-
-
-    setTimeout(() => {
-      // navigation.replace('Onboarding_signups');
-      // navigation.replace('MyTabs');
-
-
-      (async () => {
-        var userDetail = await getUserDetail()
-
-
-
-        if (userDetail?.data != null && userDetail.error == false) {
-          // navigation.replace('OnboardingSlider');
-
-          if (data) {
-            data.callType == 'VIDEO' ?
-              navigation.replace('VideoCallScreen', {
-                currentUser: data.receiverId,
-                otherUser: data.callerId,
-                fromNotification: true,
-              }) :
-              navigation.replace('VoiceCallScreen', {
-                currentUser: data.receiverId,
-                otherUser: data.callerId,
-                fromNotification: true,
-              });
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          const { data } = remoteMessage;
+          if (data.callType == 'VIDEO') {
+            navigation.replace('VideoCallScreen', {
+              currentUser: data.receiverId,
+              otherUser: data.callerId,
+              otherUserName: data.callerName,
+              otherUserImage: data.callerImage,
+              fromNotification: true,
+            });
+          } else if (data.callType == 'AUDIO') {
+            navigation.replace('VoiceCallScreen', {
+              currentUser: data.receiverId,
+              otherUser: data.callerId,
+              otherUserName: data.callerName,
+              otherUserImage: data.callerImage,
+              fromNotification: true,
+            });
           }
-          else {
-            // get user updated detail ;: 
-            const resNew = await getUserByID(userDetail?.data?.id);
-            console.log('res_______', resNew.data);
-            // /update store user detail
-            if (resNew.error == false && resNew?.data?.block_status == false) {
-              const updatedData = {
-                ...userDetail.data,
-                ...resNew.data
-              }
-              const z = await storeUserDetail(updatedData);
-              console.log('z_______', z);
-
-
-              // get user latest token add time
-
-              await checkLastTokenAddTime();
-
-              navigation.replace('MyTabs');
-            } else {
-              Alert.alert(
-                'Account Blocked',
-                'Your account has been blocked by admin, please contact support for more information',
-                [
-                  {
-                    text: 'OK',
-                    onPress: async () => {
-                      await AsyncStorage.clear();
-                      navigation.navigate('Login_N');
-                    },
-                    style: 'cancel',
-                  },
-
-                ],
-                { cancelable: false }
-              );
-            }
-          }
-
         } else {
-          navigation.replace('Onboarding_signups');
+          // Set a timeout to navigate after the splash screen animation
+          setTimeout(() => {
+            // Check user authentication status and navigate accordingly
+            (async () => {
+              try {
+                const userDetail = await getUserDetail();
+
+                if (userDetail?.data != null && userDetail.error == false) {
+                  // navigation.replace('OnboardingSlider');
+
+                  if (data) {
+                    data.callType == 'VIDEO' ?
+                      navigation.replace('VideoCallScreen', {
+                        currentUser: data.receiverId,
+                        otherUser: data.callerId,
+                        fromNotification: true,
+                      }) :
+                      navigation.replace('VoiceCallScreen', {
+                        currentUser: data.receiverId,
+                        otherUser: data.callerId,
+                        fromNotification: true,
+                      });
+                  }
+                  else {
+                    // get user updated detail ;: 
+                    const resNew = await getUserByID(userDetail?.data?.id);
+                    console.log('res_______', resNew.data);
+                    // /update store user detail
+                    if (resNew.error == false && resNew?.data?.block_status == false) {
+                      const updatedData = {
+                        ...userDetail.data,
+                        ...resNew.data
+                      }
+                      const z = await storeUserDetail(updatedData);
+                      console.log('z_______', z);
+
+
+                      // get user latest token add time
+
+                      await checkLastTokenAddTime();
+
+
+                      // navigation.reset({
+                      //   index: 0,
+                      //   routes: [{ name: 'MyTabs' }],
+                      // });
+
+                      // NEW FLOW
+
+                      navigation.reset({
+                        index: 0,
+                        routes: [{
+                          name: 'NewWaitingListScreen1',
+                          params: {
+                            fromOnboarding: true,
+                          } // Explicitly navigate to Home tab
+                        }],
+                      });
+
+
+                    } else {
+                      Alert.alert(
+                        'Account Blocked',
+                        'Your account has been blocked by admin, please contact support for more information',
+                        [
+                          {
+                            text: 'OK',
+                            onPress: async () => {
+                              await AsyncStorage.clear();
+                              navigation.navigate('Login_N');
+                            },
+                            style: 'cancel',
+                          },
+
+                        ],
+                        { cancelable: false }
+                      );
+                    }
+                  }
+
+                } else {
+                  // User is not logged in
+                  // Check if it's the first time app install
+                  const isFirstTime = await AsyncStorage.getItem('isFirstTimeInstall');
+
+                  if (isFirstTime === null) {
+                    // First time app install - set the flag and navigate to permissions
+                    await AsyncStorage.setItem('isFirstTimeInstall', 'false');
+                    console.log('First time app install, navigating to permissions');
+                    navigation.replace('Onboarding_Permissions');
+                  } else {
+                    // Not first time - navigate directly to signup
+                    console.log('Not first time app install, navigating to signup');
+                    navigation.replace('Onboarding_signups');
+                  }
+                }
+              } catch (error) {
+                console.error(error);
+              }
+            })();
+          }, 4000);
         }
-      })();
-    }, 4000);
+      });
   }, [opacity, scale]);
 
 

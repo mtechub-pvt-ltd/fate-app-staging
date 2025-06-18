@@ -6,11 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ImageBackground,
-  Platform,
 
 } from 'react-native';
 
-import { useIAP, requestPurchase, finishTransaction } from 'react-native-iap';
+import { useIAP, requestPurchase } from 'react-native-iap';
 import { useIsFocused } from '@react-navigation/native';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -37,12 +36,14 @@ const PurchaseScreen = ({ route, navigation }) => {
     finishTransaction,
   } = useIAP();
 
-  const iosProductSkus = ['1_fate_token', '10_fate_tokens', '100_fate_tokens', '200_fate_tokens', '500_fate_tokens'];
+  // const iosProductSkus = ['1_fate_token', '10_fate_tokens', '100_fate_tokens', '200_fate_tokens', '500_fate_tokens'];
+  const iosProductSkus = ['100_fate_tokens_new', '1300_fate_tokens_new', '600_fate_tokens_new'];
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         await getProducts({ skus: iosProductSkus });
+        console.log('Products fetched: ', products);
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -107,41 +108,42 @@ const PurchaseScreen = ({ route, navigation }) => {
 
   return (
     <GradientBackground style={{ flex: 1, backgroundColor: 'white' }}>
-      <ScrollView>
-        {/* Header and Back Button */}
-        <View
+      {/* Header and Back Button */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'flex-start',
+          marginTop: 65,
+          alignItems: 'center',
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
           style={{
-            flexDirection: 'row',
-            justifyContent: 'flex-start',
-            marginTop: 65,
-            alignItems: 'center',
+            padding: 10,
+            paddingHorizontal: 12,
+            marginRight: 12,
           }}
         >
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{
-              padding: 10,
-              paddingHorizontal: 12,
-              marginRight: 12,
-            }}
-          >
-            <Icon
-              name="chevron-left"
-              style={{ padding: 4, alignSelf: 'center' }}
-              size={22}
-              color={COLORS.white}
-            />
-          </TouchableOpacity>
-          <Text
-            style={{
-              fontSize: responsiveFontSize(2.5),
-              color: COLORS.white,
-              fontFamily: fonts.PoppinsMedium,
-            }}
-          >
-            Tokens
-          </Text>
-        </View>
+          <Icon
+            name="chevron-left"
+            style={{ padding: 4, alignSelf: 'center' }}
+            size={22}
+            color={COLORS.white}
+          />
+        </TouchableOpacity>
+        <Text
+          style={{
+            fontSize: responsiveFontSize(2.5),
+            color: COLORS.white,
+            fontFamily: fonts.PoppinsMedium,
+          }}
+        >
+          Tokens
+        </Text>
+      </View>
+      <ScrollView>
+
         <ImageBackground
           source={Images.test_stars}
           imageStyle={{
@@ -159,6 +161,7 @@ const PurchaseScreen = ({ route, navigation }) => {
             borderRadius: 10,
             alignContent: 'center',
             borderRadius: 20,
+
           }}
         >
           <View>
@@ -215,7 +218,7 @@ const PurchaseScreen = ({ route, navigation }) => {
         {!loading && products && products.length > 0 ? (
           <>
             <View style={{ padding: 10 }}>
-              {products.map((product) => (
+              {products.sort((a, b) => a.title.split(' ')[0] - b.title.split(' ')[0]).map((product) => (
                 <ImageBackground
                   key={product.productId}
                   source={Images.test_stars}

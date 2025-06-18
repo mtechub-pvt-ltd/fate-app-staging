@@ -1,13 +1,10 @@
-import { StyleSheet, Image, Text, View, TouchableOpacity, TextInput } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, TextInput } from 'react-native';
 import React, { useState } from 'react';
 // import { Image } from 'moti';
-import Images from '../../consts/Images';
 import { width, height } from '../../consts/Dimension';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import COLORS from '../../consts/colors';
 import fonts from '../../consts/fonts';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import { Horse, Heart, Cube } from 'phosphor-react-native';
 const CustomInput = props => {
   const [isFocused, setIsFocused] = useState(false);
   return (
@@ -36,9 +33,10 @@ const CustomInput = props => {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={props.secureTextEntry}
-          style={{
+          style={[{
             backgroundColor: '#FFFFFF29',
-            width: responsiveWidth(90),
+            width: props.style ? props.style.width
+              : responsiveWidth(90),
             padding: responsiveHeight(1.7),
             borderRadius: 20,
             marginTop: responsiveHeight(1),
@@ -49,8 +47,7 @@ const CustomInput = props => {
             borderColor: isFocused ? COLORS.primary :
               props.borderColor ? props.borderColor : '#FFFFFF3D',
             color: 'white',
-            ...props.style,
-          }}
+          }, props.style,]}
           placeholderTextColor={COLORS.grey}
           onChangeText={props.onChangeText}
           placeholder={props.placeholder}

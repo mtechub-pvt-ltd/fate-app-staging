@@ -9,7 +9,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>fate</string>
+	<string>Fate</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -31,7 +31,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.735734481931-tsruvam2ls05kqq3mpg20pknd0qe6qqo</string>
+				<string>com.googleusercontent.apps.358283258942-2g23kvf0gbp459ggoea76gbhrn4ht4bv</string>
 			</array>
 		</dict>
 	</array>
@@ -46,8 +46,11 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Fate Dating App needs access to your media library to view and upload media  in the app.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Camera access is required to take new profile pictures directly within the app</string>
+	<string>Fate Dating App needs camera access to let you take profile photos, upload content, and send pictures to matches in chat.</string>
+
 	<key>NSExceptionDomains</key>
 	<dict>
 		<key>localhost</key>
@@ -56,16 +59,22 @@
 			<true/>
 		</dict>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Fate Dating App needs access to your local network for making voice and video calls with other users, enhancing your communication experience within app.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Fate Dating App uses your location to find potential matches nearby, show their distance from you, and enable location-based features such as discovering singles in your area. Your location helps us connect you with compatible people in your vicinity.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Fate Dating App needs access to your location to provide you with personalized dating experiences, such as showing you potential matches.Your location helps us enhance your dating experience.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>fate want to access your location to view map in app</string>
+	<string>Fate Dating App uses your location to find potential matches .Your location helps us enhance your dating experience.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Microphone access is required to record audio for voice messages</string>
+	<string>Fate Dating App needs access to your microphone to allow you to send voice messages and make voice calls with other users, enhancing your communication experience.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We need access to save audio files to your library.</string>
+	<string>Fate Dating App needs access to your photo library to allow you to upload photos within app, enhancing your profile and interactions.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Access to your photo library is needed to select and upload profile pictures</string>
+	<string>Fate Dating App needs access to your photo library to allow you to upload and within app, enhancing your profile and interactions.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Speech recognition is used to enable voice commands and messaging within the app</string>
+	<string>Fate Dating App uses speech recognition to convert your voice messages into text, making it easier for you to communicate with others.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>AntDesign.ttf</string>
@@ -125,7 +134,6 @@
 	<array>
 		<string>fetch</string>
 		<string>processing</string>
-		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string></string>
@@ -133,6 +141,8 @@
 	<array>
 		<string>armv7</string>
 	</array>
+	<key>UIStatusBarHidden</key>
+	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

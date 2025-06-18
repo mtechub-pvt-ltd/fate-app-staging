@@ -1,11 +1,9 @@
-import { StyleSheet, Image, Text, View, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
 import React from 'react';
 // import { Image } from 'moti';
-import Images from '../../consts/Images';
 import { width, height } from '../../consts/Dimension';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import COLORS from '../../consts/colors';
-import fonts from '../../consts/fonts';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 const TopBar = props => {
   return (

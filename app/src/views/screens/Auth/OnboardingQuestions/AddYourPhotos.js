@@ -4,18 +4,14 @@ import {
   Text,
   SafeAreaView,
   ScrollView,
-  Animated,
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   FlatList,
   ImageBackground,
   Platform,
-  PermissionsAndroid,
-  KeyboardAvoidingView
+  PermissionsAndroid
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
@@ -26,22 +22,16 @@ import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
 import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import TopBar from '../../../../components/TopBar/TopBar';
 import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
 import { DraggableGrid } from 'react-native-draggable-grid';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import ImagePicker from 'react-native-image-crop-picker';
-import { setActive } from 'react-native-sound';
-import { base_url, cloudinary_upload_preset, node_base_url } from '../../../../consts/baseUrls';
-import { updateUserProfileData } from '../../../../Services/Auth/SignupService';
-import ChevronLeft from '../../../../components/ChevronLeft/ChevronLeft';
+import { node_base_url } from '../../../../consts/baseUrls';
 import {
   PlusCircle, XCircle, Camera,
   Image as ImageIcon
 } from 'phosphor-react-native';
-import { useSelector, useDispatch } from 'react-redux';
 
 
 function AddYourPhotos({ navigation }) {
@@ -171,10 +161,12 @@ function AddYourPhotos({ navigation }) {
       type: 'image/jpeg',
       name: 'profilePicture.jpg',
     });
-    formData.append('upload_preset', 'uheajywb');
 
+    // Comment out Cloudinary upload code
+    /*
+    formData.append('upload_preset', 'mwawkvfq');
     try {
-      const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/image/upload', {
+      const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dfhk5givd/image/upload', {
         method: 'POST',
         body: formData,
         headers: {
@@ -185,6 +177,30 @@ function AddYourPhotos({ navigation }) {
 
       if (uploadResponse.ok) {
         return uploadResult.secure_url; // Return the URL of the uploaded image
+      } else {
+        console.error('Upload error:', uploadResult);
+        return ''; // Return empty string or handle error as needed
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      return ''; // Return empty string or handle error as needed
+    }
+    */
+
+    // New upload implementation using custom backend API
+    try {
+      const uploadResponse = await fetch('https://backend.fatedating.com/upload-file', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.error) {
+        console.log('Image uploaded successfully:', uploadResult.msg);
+        return uploadResult.data.fullUrl; // Return the URL of the uploaded image
       } else {
         console.error('Upload error:', uploadResult);
         return ''; // Return empty string or handle error as needed
@@ -216,9 +232,10 @@ function AddYourPhotos({ navigation }) {
       type: 'image/jpeg',
       name: 'profilePicture.jpg',
     });
-    formData.append('upload_preset', 'mwawkvfq');
-    // formData.append('upload_preset', 'uheajywb');
 
+    // Comment out Cloudinary upload code
+    /*
+    formData.append('upload_preset', 'mwawkvfq');
     try {
       // const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/image/upload', {
       const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dfhk5givd/image/upload', {
@@ -232,6 +249,30 @@ function AddYourPhotos({ navigation }) {
       return uploadResult.secure_url; // Return the URL of the uploaded image
     } catch (error) {
       console.error('Upload error:', error);
+      return ''; // Return empty string or handle error as needed
+    }
+    */
+
+    // New upload implementation using custom backend API
+    try {
+      const uploadResponse = await fetch('https://backend.fatedating.com/upload-file', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.error) {
+        console.log('Profile image uploaded successfully:', uploadResult.msg);
+        return uploadResult.data.fullUrl; // Return the URL of the uploaded image
+      } else {
+        console.error('Profile image upload error:', uploadResult);
+        return ''; // Return empty string or handle error as needed
+      }
+    } catch (error) {
+      console.error('Profile image upload error:', error);
       return ''; // Return empty string or handle error as needed
     }
   };

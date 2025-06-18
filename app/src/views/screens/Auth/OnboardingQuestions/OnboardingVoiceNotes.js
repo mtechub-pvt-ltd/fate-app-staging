@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   PermissionsAndroid,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
@@ -22,18 +23,24 @@ import Sound from 'react-native-sound';
 import AudioRecord from 'react-native-audio-record';
 import fonts from '../../../../consts/fonts';
 import { storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import MiniAudioPlayer from '../../../../components/AudioPlayer/MiniAudioPlayer';
 
+Sound.setCategory('Playback');
 
 const OnboardingVoiceNotes = ({ route, navigation }) => {
   const { showBack } = route?.params || false;
   const [isRecording, setIsRecording] = useState(false);
   const [soundFile, setSoundFile] = useState(null);
+  const [cloudAudioUrl, setCloudAudioUrl] = useState(null);
   const [soundPlayer, setSoundPlayer] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const animatedWidth = useRef(new Animated.Value(0)).current;
   const intervalRef = useRef(null); // Interval reference
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [uploadingAudio, setUploadingAudio] = useState(false); // Add state for audio upload
   const [falshMessage, setFalshMessage] = useState(false);
   const [falshMessageData, setFalshMessageData] = useState({
     message: '',
@@ -70,6 +77,16 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
     if (Platform.OS === 'android') {
       requestPermissions();
     }
+
+    // Clean up interval and sound player on unmount
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (soundPlayer) {
+        soundPlayer.release();
+      }
+    };
   }, []);
 
   const startRecording = async () => {
@@ -80,7 +97,6 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
       audioSource: 6,
       wavFile: Math.random().toString(36).substring(7) + '.mp3',
     };
-
     AudioRecord.init(options);
     AudioRecord.start();
     console.log('Recording started');
@@ -106,10 +122,12 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
 
   const playSound = () => {
     if (soundPlayer) {
+      setAudioLoading(true); // Show loading indicator while preparing to play
       setIsPlaying(true);
       animatedWidth.setValue(0); // Reset progress bar to zero
 
       soundPlayer.play((success) => {
+        setAudioLoading(false); // Hide loading indicator when playback finishes
         if (success) {
           console.log('Playback finished');
         } else {
@@ -124,6 +142,9 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
       intervalRef.current = setInterval(() => {
         soundPlayer.getCurrentTime((currentTime) => {
           const progress = (currentTime / duration) * 100; // Calculate progress percentage
+          if (progress > 0) {
+            setAudioLoading(false); // Hide loading indicator once playback actually starts
+          }
           Animated.timing(animatedWidth, {
             toValue: progress,
             duration: 100,
@@ -144,41 +165,55 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
     }
   };
 
-  const uploadAudio = async (audioPath) => {
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('file', {
-      uri: Platform.OS === 'android' ? `file://${audioPath}` : audioPath,
-      type: 'audio/wav',
-      name: 'audioFile.wav',
-    });
-    formData.append('upload_preset', 'uheajywb');
+  const uploadAudio = async () => {
+    const recordingUri = soundFile;
+    if (!recordingUri) {
+      console.log('No audio recording found');
+      return null;
+    }
 
     try {
-      const response = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/video/upload', {
+      setUploadingAudio(true); // Show loading overlay during upload
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: recordingUri,
+        type: 'audio/wav', // or the appropriate mime type for your recording
+        name: new Date().getTime() + Math.random().toString(36).substring(7) + '.wav',
+      });
+
+      // Use custom backend API
+      const response = await fetch('https://backend.fatedating.com/upload-file', {
         method: 'POST',
         body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      const result = await response.json();
-      if (response.ok) {
-        console.log('Upload successful:', result);
-        return result.secure_url;
+
+      const data = await response.json();
+
+      if (!data.error) {
+        console.log('Audio uploaded successfully:', data.msg);
+        setCloudAudioUrl(data.data.fullUrl);
+        setUploadingAudio(false); // Hide loading overlay after success
+        return data.data.fullUrl;
       } else {
-        console.error('Upload error:', result);
-        return '';
+        console.error('Audio upload error:', data);
+        setUploadingAudio(false); // Hide loading overlay after error
+        return null;
       }
-      setLoading(false);
     } catch (error) {
-      setLoading(false);
-      console.error('Upload error:', error);
-      return '';
+      console.error('Error uploading audio:', error);
+      setUploadingAudio(false); // Hide loading overlay on error
+      return null;
     }
   };
 
   const addData = async () => {
     try {
       setLoading(true);
-      const path = await uploadAudio(soundFile);
+      const path = await uploadAudio();
       const value = await AsyncStorage.getItem('userDetail');
       const userDetail = JSON.parse(value);
       const data = {
@@ -189,12 +224,11 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
       if (!response.error) {
         await storeUserDetail(response?.user);
         navigation.replace('MyTabs');
-
+        setLoading(false);
       } else {
-
+        setLoading(false);
         alert(response.msg);
       }
-      setLoading(false);
     } catch (error) {
       setLoading(false);
       console.error('Error:', error);
@@ -204,6 +238,30 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
   return (
     <GradientBackground>
       {falshMessage && <FlashMessages falshMessageData={falshMessageData} />}
+
+      {/* Full Screen Loading Overlay */}
+      {(loading || uploadingAudio) && (
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            position: 'absolute',
+            left: responsiveHeight(0),
+            top: responsiveHeight(0),
+            zIndex: 999,
+            width: responsiveWidth(100),
+            height: responsiveHeight(100),
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}
+        >
+          <ActivityIndicator size="large" color={COLORS.white} />
+          <Text style={{ color: COLORS.white, marginLeft: 10 }}>
+            {uploadingAudio ? 'Uploading audio...' : 'Loading...'}
+          </Text>
+        </View>
+      )}
+
       <SafeAreaView style={{ flex: 1 }}>
         <View
           style={{
@@ -236,13 +294,12 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
           <Text style={styles.title}>Add a voice note to let your true self shine!</Text>
         </View>
 
-
+        {/* Show playback UI */}
         <View
           style={{
-
             justifyContent: 'center',
             alignItems: 'center',
-            flex: .7,
+            flex: 0.7,
             display: soundFile && !isRecording ? 'flex' : 'none',
           }}
         >
@@ -256,8 +313,8 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
                 { width: animatedWidth.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) },
               ]}
             />
-
           </View>
+
           <View
             style={{
               flexDirection: 'row',
@@ -265,29 +322,46 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
               alignItems: 'center',
             }}
           >
-
-            <TouchableOpacity
-              style={{
+            {audioLoading ? (
+              <View style={{
                 backgroundColor: COLORS.primary,
                 padding: responsiveHeight(2),
                 borderRadius: 15,
-              }}
-              onPress={isPlaying ? stopSound : playSound}
-              disabled={!soundFile}>
-              <Icon name={
-                isPlaying ? 'pause-circle' : 'play-circle'
-              }
-                size={responsiveHeight(5)} color={COLORS.white} />
-            </TouchableOpacity>
+              }}>
+                <ActivityIndicator size="large" color={COLORS.white} />
+                <Text style={{
+                  color: COLORS.white,
+                  fontSize: responsiveFontSize(1.5),
+                  marginTop: 5,
+                  textAlign: 'center',
+                  fontFamily: fonts.PoppinsRegular
+                }}>Loading audio...</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: COLORS.primary,
+                  padding: responsiveHeight(2),
+                  borderRadius: 15,
+                }}
+                onPress={isPlaying ? stopSound : playSound}
+                disabled={!soundFile || audioLoading}>
+                <Icon name={
+                  isPlaying ? 'pause-circle' : 'play-circle'
+                }
+                  size={responsiveHeight(5)} color={COLORS.white} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
+        {/* Show recording UI */}
         <View
           style={{
             flexDirection: 'row',
             justifyContent: 'center',
             alignItems: 'center',
-            flex: .7,
+            flex: 0.7,
             display: !soundFile || isRecording ? 'flex' : 'none',
           }}
         >
@@ -297,7 +371,6 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
               backgroundColor: COLORS.primary,
               padding: responsiveHeight(3),
               borderRadius: 15,
-
               justifyContent: 'center',
               flexDirection: 'column',
               alignItems: 'center',
@@ -322,9 +395,9 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
               fontFamily: fonts.PoppinsRegular
             }}>{isRecording ? 'Stop Recording' : 'Start Recording'}</Text>
           </TouchableOpacity>
-
         </View>
 
+        {/* Finish button */}
         <View
           style={{
             position: 'absolute',
@@ -342,6 +415,7 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
               backgroundColor: COLORS.white,
             }}
             textColor={COLORS.primary}
+            disabled={!soundFile || isRecording}
           />
         </View>
       </SafeAreaView>
@@ -351,16 +425,24 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: responsiveFontSize(3),
-    color: 'white', fontWeight: '600',
+    fontSize: responsiveFontSize(3.5),
     fontFamily: fonts.PoppinsRegular,
+    color: 'white',
+    fontWeight: '600'
   },
   progressBarContainer: {
-    width: '100%',
+    width: '80%',
     height: responsiveHeight(1),
-    backgroundColor: '#ccc', borderRadius: 5, marginVertical: 20
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 5,
+    marginVertical: 20,
+    overflow: 'hidden', // Ensure no overflow of progress bar
   },
-  progressBar: { height: '100%', backgroundColor: COLORS.primary },
+  progressBar: {
+    height: '100%',
+    backgroundColor: COLORS.white,
+    borderRadius: 5,
+  },
   controls: { flexDirection: 'row', marginTop: 20 },
   controlButton: { padding: 10, backgroundColor: '#1DB954', borderRadius: 5, marginHorizontal: 10 },
   controlText: { color: '#fff', fontSize: 16 },

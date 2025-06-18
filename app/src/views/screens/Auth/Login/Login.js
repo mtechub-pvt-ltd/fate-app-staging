@@ -1,29 +1,18 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState} from 'react';
 import {
   StyleSheet,
-  View,
   SafeAreaView,
-  TouchableOpacity,
   KeyboardAvoidingView,
 } from 'react-native';
-import {ErrorMessage, Formik} from 'formik';
-import {TextInput, Button, Headline, Text} from 'react-native-paper';
 import COLORS from '../../../../consts/colors';
 import {width, height} from '../../../../consts/Dimension';
-import * as Yup from 'yup';
 import MainContainer from '../../../../components/MainContainer/MainContainer';
-import {Image, MotiView} from 'moti';
-import Images from '../../../../consts/Images';
 import {
   ScrollView,
-  TouchableWithoutFeedback,
 } from 'react-native-gesture-handler';
 import AppLogo from '../../../../components/AppLogo/AppLogo';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import FastImage from 'react-native-fast-image';
 import FlashMessages from '../../../../components/FlashMessages/FlashMessages';
 import {loginByEmail} from '../../../../Services/Auth/LoginService';
-import {storeUserDetail} from '../../../../HelperFunctions/AsyncStorage/userDetail';
 
 export default function Login({navigation}) {
   //states

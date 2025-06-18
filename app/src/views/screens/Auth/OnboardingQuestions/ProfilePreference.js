@@ -1,6 +1,5 @@
 import React, {
-  useEffect, useState, useRef,
-  useCallback
+  useEffect, useState, useRef
 } from 'react';
 import { View, Text, SafeAreaView, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +32,8 @@ function ProfilePreference({ navigation }) {
   const reduxPreferredGender = useSelector(
     (state) => state.form.preferences.preferredGender
   );
+  // Get user's gender from Redux store
+  const userGender = useSelector((state) => state.form.gender);
   // const [age, setAge] = useState({
   //   min: reduxMin,
   //   max: reduxMax,
@@ -324,12 +325,8 @@ function ProfilePreference({ navigation }) {
                     setFalshMessage(false);
                   }, 3000);
                 } else {
-                  // console.log('reduxMin', reduxMin)
-                  // console.log('reduxMax', reduxMax)
-                  // console.log('reduxPreferredGender', reduxPreferredGender)
-                  Platform.OS === 'android' ?
-                    navigation.navigate('OnboardingVoiceNotesTest') :
-                    navigation.navigate('OnboardingVoiceNotesIOS');
+                  navigation.navigate('OnboardingVoiceNotesIOS');
+
                 }
 
               }

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   SafeAreaView,
-  Animated,
   StyleSheet,
   Keyboard,
   Image,
@@ -12,33 +11,26 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  PermissionsAndroid,
+  Alert,
+  Linking,
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
-import { boolean } from 'yup';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import Voice from '@react-native-voice/voice';
 import Tts from 'react-native-tts';
-import TopBar from '../../../../components/TopBar/TopBar';
 import FlashMessages from '../../../../components/FlashMessages/FlashMessages';
 import { getAllQuestions, addAnswertoQuestion } from '../../../../Services/Auth/SignupService';
 import {
-  Horse, Heart, Cube,
-  Eye, EyeSlash,
-  SkipForward, SkipBackward,
+  SkipForward,
 } from 'phosphor-react-native';
-import { colorKeys } from 'moti';
-import { CollapsedItem } from 'react-native-paper/lib/typescript/components/Drawer/Drawer';
 
 const OnboardingQuestions = ({ route, navigation }) => {
   const [email, setEmail] = useState('');
@@ -100,6 +92,49 @@ const OnboardingQuestions = ({ route, navigation }) => {
     type: '',
     icon: '',
   });
+
+  const requestPermissionsAndInitAudio = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        ]);
+
+        if (
+          granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== PermissionsAndroid.RESULTS.GRANTED ||
+          granted[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] !== PermissionsAndroid.RESULTS.GRANTED
+        ) {
+          Alert.alert(
+            'Permissions Required',
+            'You must allow permissions to record audio. Go to Settings > App Permissions to enable them.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ]
+          );
+        } else {
+          console.log('All permissions granted');
+        }
+      } catch (error) {
+        console.error('Error requesting permissions:', error);
+      }
+    }
+
+    const options = {
+      sampleRate: 16000, // 16 kHz
+      channels: 1, // Mono
+      bitsPerSample: 16, // 16-bit
+      audioSource: 6, // Voice Recognition
+      wavFile: 'test_audio.wav', // File name
+    };
+    AudioRecord.init(options);
+  };
+
+  useEffect(() => {
+    requestPermissionsAndInitAudio();
+  }, []);
+
   useEffect(() => {
     const onSpeechStart = () => {
       setIsRecording(true);

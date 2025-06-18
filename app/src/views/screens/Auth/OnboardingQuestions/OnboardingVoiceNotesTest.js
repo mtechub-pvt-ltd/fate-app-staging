@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   PermissionsAndroid,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
@@ -23,6 +24,7 @@ import AudioRecord from 'react-native-audio-record';
 import fonts from '../../../../consts/fonts';
 import { storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 
+Sound.setCategory('Playback');
 
 const OnboardingVoiceNotes = ({ route, navigation }) => {
   const { showBack } = route?.params || false;
@@ -30,10 +32,13 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
   const [soundFile, setSoundFile] = useState(null);
   const [soundPlayer, setSoundPlayer] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const animatedWidth = useRef(new Animated.Value(0)).current;
   const intervalRef = useRef(null); // Interval reference
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [uploadingAudio, setUploadingAudio] = useState(false); // Add state for audio upload
   const [falshMessage, setFalshMessage] = useState(false);
   const [falshMessageData, setFalshMessageData] = useState({
     message: '',
@@ -106,10 +111,12 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
 
   const playSound = () => {
     if (soundPlayer) {
+      setAudioLoading(true); // Show loading indicator while preparing to play
       setIsPlaying(true);
       animatedWidth.setValue(0); // Reset progress bar to zero
 
       soundPlayer.play((success) => {
+        setAudioLoading(false); // Hide loading indicator when playback starts or fails
         if (success) {
           console.log('Playback finished');
         } else {
@@ -124,6 +131,9 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
       intervalRef.current = setInterval(() => {
         soundPlayer.getCurrentTime((currentTime) => {
           const progress = (currentTime / duration) * 100; // Calculate progress percentage
+          if (progress > 0) {
+            setAudioLoading(false); // Hide loading indicator once playback actually starts
+          }
           Animated.timing(animatedWidth, {
             toValue: progress,
             duration: 100,
@@ -144,33 +154,61 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
     }
   };
 
-  const uploadAudio = async (audioPath) => {
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('file', {
-      uri: Platform.OS === 'android' ? `file://${audioPath}` : audioPath,
-      type: 'audio/wav',
-      name: 'audioFile.wav',
-    });
-    formData.append('upload_preset', 'uheajywb');
+  const uploadAudio = async (filePath) => {
+    if (!filePath) {
+      console.log('No audio recording found');
+      return null;
+    }
 
     try {
-      const response = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/video/upload', {
+      setUploadingAudio(true); // Show loading indicator during upload
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: filePath,
+        type: 'audio/wav', // or the appropriate mime type for your recording
+        // name: 'voice_note.wav',
+        name: new Date().getTime() + Math.random().toString(36).substring(7) + '.wav',
+      });
+
+      // Comment out Cloudinary upload code
+      /*
+      formData.append('upload_preset', 'mwawkvfq');
+      
+      const response = await fetch('https://api.cloudinary.com/v1_1/dfhk5givd/video/upload', { // Updated URL
         method: 'POST',
         body: formData,
       });
-      const result = await response.json();
-      if (response.ok) {
-        console.log('Upload successful:', result);
-        return result.secure_url;
+      
+      const data = await response.json();
+      console.log('Upload success', data);
+      return data.secure_url;
+      */
+
+      // New upload implementation using custom backend API
+      const response = await fetch('https://backend.fatedating.com/upload-file', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!data.error) {
+        console.log('Audio uploaded successfully:', data.msg);
+        setUploadingAudio(false); // Hide loader after successful upload
+        return data.data.fullUrl;
       } else {
-        console.error('Upload error:', result);
-        return '';
+        console.error('Audio upload error:', data);
+        setUploadingAudio(false); // Hide loader after upload error
+        return null;
       }
     } catch (error) {
-      setLoading(false);
-      console.error('Upload error:', error);
-      return '';
+      console.error('Error uploading audio:', error);
+      setUploadingAudio(false); // Hide loader after upload error
+      return null;
     }
   };
 
@@ -263,20 +301,36 @@ const OnboardingVoiceNotes = ({ route, navigation }) => {
               alignItems: 'center',
             }}
           >
-
-            <TouchableOpacity
-              style={{
+            {audioLoading ? (
+              <View style={{
                 backgroundColor: COLORS.primary,
                 padding: responsiveHeight(2),
                 borderRadius: 15,
-              }}
-              onPress={isPlaying ? stopSound : playSound}
-              disabled={!soundFile}>
-              <Icon name={
-                isPlaying ? 'pause-circle' : 'play-circle'
-              }
-                size={responsiveHeight(5)} color={COLORS.white} />
-            </TouchableOpacity>
+              }}>
+                <ActivityIndicator size="large" color={COLORS.white} />
+                <Text style={{
+                  color: COLORS.white,
+                  fontSize: responsiveFontSize(1.5),
+                  marginTop: 5,
+                  textAlign: 'center',
+                  fontFamily: fonts.PoppinsRegular
+                }}>Loading...</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: COLORS.primary,
+                  padding: responsiveHeight(2),
+                  borderRadius: 15,
+                }}
+                onPress={isPlaying ? stopSound : playSound}
+                disabled={!soundFile}>
+                <Icon name={
+                  isPlaying ? 'pause-circle' : 'play-circle'
+                }
+                  size={responsiveHeight(5)} color={COLORS.white} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

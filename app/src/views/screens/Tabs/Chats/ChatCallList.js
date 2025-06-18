@@ -3,18 +3,10 @@ import {
   View,
   Text,
   SafeAreaView,
-  FlatList,
-  Animated,
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
-  ImageBackground,
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
@@ -22,13 +14,6 @@ import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
-import PrimaryButton from '../../../../components/Button/PrimaryButton';
-import LinearGradient from 'react-native-linear-gradient';
-import AppLogo from '../../../../components/AppLogo/AppLogo';
-import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
-import { getMatchUsers, getUsersforJokerCard } from '../../../../Services/Auth/SignupService';
 import { ScrollView } from 'react-native-gesture-handler';
 function ChatList({ navigation }) {
   const [email, setEmail] = useState('');

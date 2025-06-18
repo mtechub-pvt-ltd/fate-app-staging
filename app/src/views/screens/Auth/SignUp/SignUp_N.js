@@ -8,58 +8,178 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Linking
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import { storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
 import Header from '../../../../components/TopBar/Header';
 import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
-import { registerByEmail } from '../../../../Services/Auth/SignupService';
+import { registerByEmail, checkUserExists } from '../../../../Services/Auth/SignupService';
 import FlashMessages from '../../../../components/FlashMessages/FlashMessages';
 import {
   GoogleSignin,
-  GoogleSigninButton,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
-import { height } from '../../../../consts/Dimension';
-import { Horse, Heart, Cube, Eye, EyeSlash } from 'phosphor-react-native';
-import { setEmailAndPassword, setStep } from '../../../../redux/features/form/formSlice';
+import { appleAuth } from '@invertase/react-native-apple-authentication';
+import { Check, Eye, EyeSlash } from 'phosphor-react-native';
+import {
+  setEmailAndPassword, setStep,
+} from '../../../../redux/features/form/formSlice';
 import { useDispatch, useSelector } from 'react-redux';
+import { Checkbox } from 'react-native-paper';
+import BouncyCheckbox from "react-native-bouncy-checkbox";
+
 
 
 
 function SignUp_N({ route, navigation }) {
   const { signupBy } = route?.params;
-  const { email: reduxEmail, password: reduxPassword } = useSelector((state) => state.form);
+  const { email: reduxEmail, password: reduxPassword,
+    type: reduxType
+  } = useSelector((state) => state.form);
 
   const [email, setEmail] = useState(reduxEmail || '');
   const [password, setPassword] = useState(reduxPassword || '');
   const [showPassword, setShowPassword] = useState(true);
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(reduxPassword || '');
   const [showConfirmPassword, setShowConfirmPassword] = useState(true);
+  const [isChecked, setIsChecked] = useState(false);
+
   const [loading, setLoading] = useState(false);
   // message state
-  const [falshMessage, setFalshMessage] = useState(false);
-  const [falshMessageData, setFalshMessageData] = useState({
+  const [flashMessage, setFlashMessage] = useState(false);
+  const [flashMessageData, setFlashMessageData] = useState({
     message: '',
     description: '',
     type: '',
     icon: '',
+    backgroundColor: COLORS.red, // Default background color
+    textColor: COLORS.white, // Default text color
   });
 
   const dispatch = useDispatch();
 
-  const handleNext = () => {
-    dispatch(setEmailAndPassword({ email, password }));
-    dispatch(setStep(2)); // Move to step 2
-    navigation.navigate('BasicProfileInfo');
+  const handleNext = async () => {
+    setLoading(true);
+    try {
+      if (email.length == 0 || password.length == 0 || confirmPassword.length == 0) {
+        setFlashMessageData({
+          message: 'Error',
+          description: 'Please fill all the fields',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+        return;
+      } else if (!validateEmail(email)) {
+        setFlashMessageData({
+          message: 'Error',
+          description: 'Please enter a valid email',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+        return;
+      } else if (!validateStrongPassword(password)) {
+        setFlashMessageData({
+          message: 'Error',
+          description:
+            'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number and one special character',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+      } else if (password != confirmPassword) {
+        setFlashMessageData({
+          message: 'Error',
+          description: 'Please enter the same password',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+        return;
+      } else if (!isChecked) {
+        setFlashMessageData({
+          message: 'Error',
+          description: 'Please agree to the terms and conditions',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+        return;
+      } else {
+        const data = {
+          email: email,
+        };
+        const response = await checkUserExists(data);
+
+
+        if (response?.exists == false) {
+
+
+          Promise.all([
+            dispatch(setEmailAndPassword({ email, password })),
+            dispatch(setStep(2)) // Move to step 2
+          ]).then(() => {
+            navigation.navigate('BasicProfileInfo');
+          }
+          );
+        } else {
+          setFlashMessageData({
+            message: 'Error',
+            description: 'User already exists',
+            type: 'info',
+            icon: 'info',
+            backgroundColor: COLORS.red,
+            textColor: COLORS.white,
+          });
+          setFlashMessage(true);
+
+          setTimeout(() => {
+            setFlashMessage(false);
+            setLoading(false);
+          }, 3000);
+        }
+
+
+      }
+    }
+    catch (error) {
+      console.log(error);
+    }
+    finally {
+      setLoading(false);
+    }
+
   };
 
   function validateEmail(email) {
@@ -86,35 +206,190 @@ function SignUp_N({ route, navigation }) {
 
   const googleSignIn = async () => {
     try {
+      setLoading(true);
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
-      console.log('userInfo>>>>>>>>>>>>>>', userInfo?.user.email)
+      console.log('userInfo>>>>>>>>>>>>>>', userInfo?.user.email);
 
-      await handleRegisterEmailAPI(userInfo?.user.email, 'Mtechub@123', 'GOOGLE')
+      // Check if user exists first
+      const data = { email: userInfo?.user.email };
+      const response = await checkUserExists(data);
+      console.log('Google Sign-In Response:', response);
+
+      if (!response?.exists) {
+        // Update Redux state
+        await Promise.all([
+          dispatch(setEmailAndPassword({ email: userInfo?.user.email, password: 'Mtechub@123' })),
+          dispatch(setStep(2))
+        ]);
+
+        await handleRegisterEmailAPI(userInfo?.user.email, 'Mtechub@123', 'GOOGLE');
+      } else {
+        // Show error message for existing user
+        setFlashMessageData({
+          message: 'Error',
+          description: 'User already exists. Please sign in instead.',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
+      }
 
     } catch (error) {
-      if (isErrorWithCode(error)) {
+      console.log('Google Sign-In Error:', error);
+      if (error.code) {
         switch (error.code) {
           case statusCodes.SIGN_IN_CANCELLED:
-            console.log('SIGN_IN_CANCELLED', error)
-            // user cancelled the login flow
+            console.log('SIGN_IN_CANCELLED', error);
             break;
           case statusCodes.IN_PROGRESS:
-            // operation (eg. sign in) already in progress
-            console.log('IN_PROGRESS', error)
+            console.log('IN_PROGRESS', error);
             break;
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            console.log('PLAY_SERVICES_NOT_AVAILABLE', error)
-            // play services not available or outdated
+            console.log('PLAY_SERVICES_NOT_AVAILABLE', error);
+            setFlashMessageData({
+              message: 'Error',
+              description: 'Google Play Services is not available or outdated',
+              type: 'info',
+              icon: 'info',
+              backgroundColor: COLORS.red,
+              textColor: COLORS.white,
+            });
+            setFlashMessage(true);
+            setTimeout(() => {
+              setFlashMessage(false);
+            }, 3000);
             break;
           default:
-            // some other error happened
-            console.log('default', error)
+            setFlashMessageData({
+              message: 'Error',
+              description: 'Google Sign-In failed. Please try again.',
+              type: 'info',
+              icon: 'info',
+              backgroundColor: COLORS.red,
+              textColor: COLORS.white,
+            });
+            setFlashMessage(true);
+            setTimeout(() => {
+              setFlashMessage(false);
+            }, 3000);
         }
       } else {
-        // an error that's not related to google sign in occurred
-        console.log('error', error)
+        setFlashMessageData({
+          message: 'Error',
+          description: 'Google Sign-In failed. Please try again.',
+          type: 'info',
+          icon: 'info',
+          backgroundColor: COLORS.red,
+          textColor: COLORS.white,
+        });
+        setFlashMessage(true);
+        setTimeout(() => {
+          setFlashMessage(false);
+        }, 3000);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setLoading(true);
+      console.log('Starting Apple Sign-In flow...');
+
+      const appleAuthRequestResponse = await appleAuth.performRequest({
+        requestedOperation: appleAuth.Operation.LOGIN,
+        requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
+      });
+
+      console.log('Apple Sign-In Response:', appleAuthRequestResponse);
+
+      const { identityToken, email, fullName, user } = appleAuthRequestResponse;
+
+      if (!identityToken) {
+        throw new Error('No identity token received');
+      }
+
+      // Try to get email from token
+      let userEmail = email;
+      if (!userEmail && identityToken) {
+        try {
+          const decoded = jwtDecode(identityToken);
+          userEmail = decoded.email;
+          console.log('Got email from token:', userEmail);
+        } catch (e) {
+          console.log('Failed to decode token:', e);
+        }
+      }
+
+      // Fallback to user ID if still no email
+      if (!userEmail) {
+        userEmail = `${user}@privaterelay.appleid.com`;
+        console.log('Using fallback email:', userEmail);
+      }
+
+      const defaultPassword = 'Mtechub@123';
+      const name = fullName ?
+        `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim() :
+        user;
+
+      // Check if user exists
+      const checkResponse = await checkUserExists({ email: userEmail });
+      console.log('Check user response:', checkResponse);
+
+      if (!checkResponse?.exists) {
+        console.log('User does not exist, proceeding with registration');
+        // Update Redux state
+        await Promise.all([
+          dispatch(setEmailAndPassword({ email: userEmail, password: defaultPassword })),
+          dispatch(setStep(2))
+        ]);
+
+        // Register user
+        const registerData = {
+          email: userEmail,
+          password: defaultPassword,
+          type: 'APPLE'
+        };
+
+        const response = await registerByEmail(registerData);
+        console.log('Register response:', response);
+
+        if (!response.error) {
+          const userDetail = await storeUserDetail(response.data);
+          if (userDetail) {
+            console.log('Navigating to BasicProfileInfo');
+            navigation.navigate('BasicProfileInfo', { name });
+          }
+        } else {
+          throw new Error(response.msg || 'Registration failed');
+        }
+      } else {
+        throw new Error('User already exists. Please sign in instead.');
+      }
+    } catch (error) {
+      console.log('Apple Sign-In Error:', error);
+      setFlashMessageData({
+        message: 'Error',
+        description: error.message || 'Apple Sign-In failed. Please try again.',
+        type: 'info',
+        icon: 'info',
+        backgroundColor: COLORS.red,
+        textColor: COLORS.white,
+      });
+      setFlashMessage(true);
+      setTimeout(() => {
+        setFlashMessage(false);
+      }, 3000);
+    } finally {
+      setLoading(false);
+      console.log('Apple Sign-In flow completed');
     }
   };
 
@@ -132,7 +407,7 @@ function SignUp_N({ route, navigation }) {
         const response = await registerByEmail(data);
         console.log(response);
         if (response.error == true) {
-          setFalshMessageData({
+          setFlashMessageData({
             message: 'Error',
             description: response.msg,
             type: 'info',
@@ -141,7 +416,7 @@ function SignUp_N({ route, navigation }) {
             textColor: COLORS.white,
           });
         } else {
-          setFalshMessageData({
+          setFlashMessageData({
             message: 'Success',
             description: response.msg,
             type: 'success',
@@ -154,17 +429,17 @@ function SignUp_N({ route, navigation }) {
             navigation.navigate('BasicProfileInfo');
           }
         }
-        setFalshMessage(true);
+        setFlashMessage(true);
         setLoading(false);
         setTimeout(() => {
-          setFalshMessage(false);
+          setFlashMessage(false);
         }, 3000);
       } catch (error) {
         console.log(error);
       }
     } else {
       if (email.length == 0 || password.length == 0 || confirmPassword.length == 0) {
-        setFalshMessageData({
+        setFlashMessageData({
           message: 'Error',
           description: 'Please fill all the fields',
           type: 'info',
@@ -172,13 +447,13 @@ function SignUp_N({ route, navigation }) {
           backgroundColor: COLORS.red,
           textColor: COLORS.white,
         });
-        setFalshMessage(true);
+        setFlashMessage(true);
         setTimeout(() => {
-          setFalshMessage(false);
+          setFlashMessage(false);
         }, 3000);
         return;
       } else if (!validateEmail(email)) {
-        setFalshMessageData({
+        setFlashMessageData({
           message: 'Error',
           description: 'Please enter a valid email',
           type: 'info',
@@ -186,13 +461,13 @@ function SignUp_N({ route, navigation }) {
           backgroundColor: COLORS.red,
           textColor: COLORS.white,
         });
-        setFalshMessage(true);
+        setFlashMessage(true);
         setTimeout(() => {
-          setFalshMessage(false);
+          setFlashMessage(false);
         }, 3000);
         return;
       } else if (!validateStrongPassword(password)) {
-        setFalshMessageData({
+        setFlashMessageData({
           message: 'Error',
           description:
             'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number and one special character',
@@ -201,12 +476,12 @@ function SignUp_N({ route, navigation }) {
           backgroundColor: COLORS.red,
           textColor: COLORS.white,
         });
-        setFalshMessage(true);
+        setFlashMessage(true);
         setTimeout(() => {
-          setFalshMessage(false);
+          setFlashMessage(false);
         }, 3000);
       } else if (password != confirmPassword) {
-        setFalshMessageData({
+        setFlashMessageData({
           message: 'Error',
           description: 'Please enter the same password',
           type: 'info',
@@ -214,9 +489,9 @@ function SignUp_N({ route, navigation }) {
           backgroundColor: COLORS.red,
           textColor: COLORS.white,
         });
-        setFalshMessage(true);
+        setFlashMessage(true);
         setTimeout(() => {
-          setFalshMessage(false);
+          setFlashMessage(false);
         }, 3000);
         return;
       } else {
@@ -232,7 +507,7 @@ function SignUp_N({ route, navigation }) {
           const response = await registerByEmail(data);
           console.log(response);
           if (response.error == true) {
-            setFalshMessageData({
+            setFlashMessageData({
               message: 'Error',
               description: response.msg,
               type: 'info',
@@ -241,7 +516,7 @@ function SignUp_N({ route, navigation }) {
               textColor: COLORS.white,
             });
           } else {
-            setFalshMessageData({
+            setFlashMessageData({
               message: 'Success',
               description: response.msg,
               type: 'success',
@@ -254,10 +529,10 @@ function SignUp_N({ route, navigation }) {
               navigation.navigate('BasicProfileInfo');
             }
           }
-          setFalshMessage(true);
+          setFlashMessage(true);
           setLoading(false);
           setTimeout(() => {
-            setFalshMessage(false);
+            setFlashMessage(false);
           }, 3000);
         } catch (error) {
           console.log(error);
@@ -268,16 +543,21 @@ function SignUp_N({ route, navigation }) {
 
   useEffect(() => {
     if (signupBy) {
-      if (signupBy == 'GOOGLE') {
+      if (signupBy === 'GOOGLE') {
         googleSignIn()
+      } else if (signupBy === 'APPLE') {
+        handleAppleSignIn();
       }
     }
   }, []);
 
   return (
     <GradientBackground>
-      {falshMessage && <FlashMessages falshMessageData={falshMessageData} />}
-      <SafeAreaView style={{ flex: 1 }}>
+      {flashMessage && <FlashMessages flashMessageData={flashMessageData} />}
+      <SafeAreaView style={{
+        flex: 1,
+
+      }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
@@ -343,6 +623,69 @@ function SignUp_N({ route, navigation }) {
                   setShowConfirmPassword(!showConfirmPassword);
                 }}
               />
+              <View
+                style={{
+                  flexDirection: 'row',
+                  marginVertical: responsiveHeight(3),
+                  // alignItems: 'center',
+                  // justifyContent: 'flex-start',
+                }}
+              >
+
+
+                <BouncyCheckbox
+                  size={25}
+                  fillColor={COLORS.secondary2}
+                  unFillColor={COLORS.white}
+                  iconStyle={{ borderColor: COLORS.white }}
+                  innerIconStyle={{ borderWidth: 1 }}
+                  textStyle={{ fontFamily: "JosefinSans-Regular" }}
+                  onPress={() => {
+                    setIsChecked(!isChecked);
+                  }}
+                  isChecked={isChecked}
+                  style={{
+                    marginTop: -2
+                  }}
+                />
+                <View
+                  style={{
+                    flexDirection: 'row',
+
+                  }}
+                >
+
+                  <Text
+                    style={{
+                      color: COLORS.white,
+                      fontSize: responsiveFontSize(2),
+                      marginLeft: responsiveWidth(1),
+                      fontFamily: 'Poppins-Regular',
+
+                    }}
+                  >I agree to the</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Linking.openURL('https://app.termly.io/policy-viewer/policy.html?policyUUID=c2e278c8-25b0-4471-a8b3-729b7ae93f19');
+                    }}
+                    style={{
+                      borderBottomWidth: 1,
+                      borderBottomColor: COLORS.white,
+                      marginHorizontal: responsiveWidth(1),
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: COLORS.white,
+                        fontSize: responsiveFontSize(2),
+                        fontFamily: 'Poppins-Regular',
+                        fontWeight: '600',
+
+                      }}
+                    >Terms and Conditions</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
               <View
                 style={{
                   height: responsiveHeight(10),
@@ -418,6 +761,34 @@ var styles = StyleSheet.create({
     margin: 10,
     color: '#ffffff',
     backgroundColor: 'transparent',
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: responsiveHeight(2),
+    marginBottom: responsiveHeight(2),
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 1,
+    borderColor: COLORS.white,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  emptyCheckbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: COLORS.white,
+    borderRadius: 4,
+  },
+  termsText: {
+    color: COLORS.white,
+    fontSize: responsiveFontSize(1.8),
+    fontFamily: fonts.MONTSERRAT_REGULAR,
   },
 });
 

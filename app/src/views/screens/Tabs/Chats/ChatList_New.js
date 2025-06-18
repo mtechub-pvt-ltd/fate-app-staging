@@ -1,37 +1,19 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   SafeAreaView,
   FlatList,
-  Animated,
   StyleSheet,
-  Image,
-  TouchableOpacity,
-  TextInput,
-  ImageBackground,
-  ScrollView,
-  Button,
-  Platform
+  TouchableOpacity
 
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import { getUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
-import PrimaryButton from '../../../../components/Button/PrimaryButton';
-import LinearGradient from 'react-native-linear-gradient';
-import AppLogo from '../../../../components/AppLogo/AppLogo';
-import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
-import io from 'socket.io-client';
 import { node_base_url } from '../../../../consts/baseUrls';
 function ChatList({ navigation }) {
 

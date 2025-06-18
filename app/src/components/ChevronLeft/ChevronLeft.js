@@ -1,7 +1,6 @@
-import { StyleSheet, Text, View ,TouchableOpacity
+import { TouchableOpacity
 } from 'react-native'
 import React from 'react'
-import { width, height } from '../../consts/Dimension';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import COLORS from '../../consts/colors';
 const ChevronLeft = ({onPress}) => {

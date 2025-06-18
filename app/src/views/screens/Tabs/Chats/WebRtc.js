@@ -7,7 +7,8 @@ import {
   RTCView,
   RTCSessionDescription,
   RTCIceCandidate,
-} from 'react-native-webrtc';
+  // } from 'react-native-webrtc';
+} from '@daily-co/react-native-webrtc';
 
 const configuration = { "iceServers": [{ "urls": "stun:stun.l.google.com:19302" }] };
 let socket;

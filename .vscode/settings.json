@@ -1,5 +1,27 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "automatic",
-    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m -Xlog:disable"
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m -Xlog:disable",
+  "postman.settings.dotenv-detection-notification-visibility": false,
+  "C_Cpp.default.compilerPath": "",
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#ffa7f5",
+    "activityBar.background": "#ffa7f5",
+    "activityBar.foreground": "#15202b",
+    "activityBar.inactiveForeground": "#15202b99",
+    "activityBarBadge.background": "#718000",
+    "activityBarBadge.foreground": "#e7e7e7",
+    "commandCenter.border": "#15202b99",
+    "sash.hoverBorder": "#ffa7f5",
+    "statusBar.background": "#ff74ef",
+    "statusBar.foreground": "#15202b",
+    "statusBarItem.hoverBackground": "#ff41e9",
+    "statusBarItem.remoteBackground": "#ff74ef",
+    "statusBarItem.remoteForeground": "#15202b",
+    "titleBar.activeBackground": "#ff74ef",
+    "titleBar.activeForeground": "#15202b",
+    "titleBar.inactiveBackground": "#ff74ef99",
+    "titleBar.inactiveForeground": "#15202b99"
+  },
+  "peacock.color": "#ff74ef"
 }

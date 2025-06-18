@@ -1,7 +1,6 @@
-import { StyleSheet, Image, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import React from 'react';
 // import { Image } from 'moti';
-import Images from '../../consts/Images';
 import { width, height } from '../../consts/Dimension';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import COLORS from '../../consts/colors';
@@ -44,7 +43,7 @@ const Header = props => {
           fontSize: responsiveFontSize(2),
           color: COLORS.white,
           marginVertical: responsiveHeight(1),
-          lineHeight: responsiveHeight(3),
+          // lineHeight: responsiveHeight(3),
           textTransform: 'capitalize',
           width: responsiveWidth(80),
           fontFamily: fonts.PoppinsRegular,

@@ -1,23 +1,17 @@
-import React, {useRef} from 'react';
+import React from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   Image,
-  TouchableOpacity,
 } from 'react-native';
-import {TextInput, Button} from 'react-native-paper';
 import COLORS from '../../../../consts/colors';
-import {width, height} from '../../../../consts/Dimension';
+import {width} from '../../../../consts/Dimension';
 import Images from '../../../../consts/Images';
-import Logo from '../../../../assets/logo.png';
 
-import Icon from 'react-native-vector-icons/Ionicons';
 import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import {MotiView} from 'moti';
-import {addFirstInstallStatus} from '../../../../HelperFunctions/AsyncStorage/userDetail';
 
 export default function OnboardingSlider({navigation}) {
   const [state, setState] = React.useState({

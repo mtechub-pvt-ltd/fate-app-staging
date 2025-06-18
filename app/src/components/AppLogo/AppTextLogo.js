@@ -1,9 +1,8 @@
-import {StyleSheet, Image, Text, View} from 'react-native';
+import {StyleSheet, Image} from 'react-native';
 import React from 'react';
 // import { Image } from 'moti';
 import Images from '../../consts/Images';
-import {width, height} from '../../consts/Dimension';
-import {responsiveHeight, responsiveWidth, responsiveFontSize} from 'react-native-responsive-dimensions';
+import {responsiveHeight, responsiveWidth} from 'react-native-responsive-dimensions';
 const AppTextLogo = ({style}) => {
   return <Image source={Images.writtenLogo} style={[styles.imageStyle, style]} />;
 };

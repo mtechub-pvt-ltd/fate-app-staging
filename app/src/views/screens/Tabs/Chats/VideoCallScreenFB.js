@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription, RTCPeerConnection } from 'react-native-webrtc';
+// import { RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription, RTCPeerConnection } from 'react-native-webrtc';
+import { RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription, RTCPeerConnection } from '@daily-co/react-native-webrtc';
 import io from 'socket.io-client';
 import { node_base_url } from '../../../../consts/baseUrls';
 
@@ -63,7 +64,7 @@ const VideoCallScreen = ({ route, navigation }) => {
     const description = new RTCSessionDescription({ type: 'answer', sdp: sdpAnswer });
     await peerConnection.current.setRemoteDescription(description);
     setIsCallIncoming(false);
-    
+
   };
 
   const handleIceCandidate = async ({ candidate }) => {
@@ -79,9 +80,9 @@ const VideoCallScreen = ({ route, navigation }) => {
     peerConnection.current.ontrack = ({ streams: [stream] }) => setRemoteStream(stream);
     // create answer
     localStream.getTracks().forEach(track => peerConnection.current.addTrack(track, localStream));
-    
-   
-    
+
+
+
   };
 
   const createOffer = async () => {
@@ -119,11 +120,11 @@ const VideoCallScreen = ({ route, navigation }) => {
         <TouchableOpacity style={styles.button} onPress={createOffer}>
           <Text style={styles.buttonText}>Start Call</Text>
         </TouchableOpacity>
-       
-          <TouchableOpacity style={styles.button} onPress={answerCall}>
-            <Text style={styles.buttonText}>Answer Call</Text>
-          </TouchableOpacity>
-     
+
+        <TouchableOpacity style={styles.button} onPress={answerCall}>
+          <Text style={styles.buttonText}>Answer Call</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.button}
           onPress={() => {

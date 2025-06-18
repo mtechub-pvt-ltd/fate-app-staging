@@ -1,43 +1,31 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, SafeAreaView,
-  Animated, StyleSheet, Image,
-  TouchableOpacity, TextInput, Platform,
-  keyboardVerticalOffset, ScrollView, KeyboardAvoidingView,
-  Keyboard,
-  Button,
+  View, Text, SafeAreaView, StyleSheet,
+  TouchableOpacity, Platform, ScrollView, KeyboardAvoidingView,
+  Keyboard, Alert,
 } from 'react-native';
 
-import { Dropdown } from 'react-native-element-dropdown';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
 import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import TopBar from '../../../../components/TopBar/TopBar';
 import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
 import FlashMessages from '../../../../components/FlashMessages/FlashMessages';
-import { BasicProfileInfoService } from '../../../../Services/Auth/SignupService';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
-  Horse, Heart, Cube,
-  Eye, EyeSlash,
-  SkipForward, SkipBackward,
   GenderMale,
   GenderFemale,
 } from 'phosphor-react-native';
-import { MenuView, MenuComponentRef } from '@react-native-menu/menu';
 import { useDispatch, useSelector } from 'react-redux';
 import { setPersonalDetails, setStep } from '../../../../redux/features/form/formSlice';
 
 function BasicProfileInfo({ route, navigation }) {
-  const { name } = route?.params || {}; // Use optional chaining with a fallback
+  const { name } = route?.params || {}; // Name from sign-in provider (Google/Apple) if available
+  const nameFromPreviousScreen = name; // true only if name came from provider
 
   const {
     fullName: reduxFullName,
@@ -61,37 +49,39 @@ function BasicProfileInfo({ route, navigation }) {
   const [list, setList] = useState([
     {
       title: 'Your Full Name',
-      subtitle: 'Yes, that should be your real name',
+      subtitle: '',
       placeholder: 'Full Name',
-      actualPlaceholder: 'e.g. Oliviar Giroud',
+      actualPlaceholder: 'e.g. Oliver Giroud',
       keyboardType: 'default',
-      value: name ? name : reduxFullName || '',
-
+      value: nameFromPreviousScreen ? name : reduxFullName || '',
       type: 'FULL_NAME',
+      editable: !nameFromPreviousScreen, // editable if not provider name
     },
     {
       title: 'Your Age',
-      subtitle: 'Your age will be visible to other users',
+      subtitle: '',
       placeholder: 'Age',
       actualPlaceholder: 'e.g. 21',
       keyboardType: 'number-pad',
       value: reduxAge || '',
       type: 'AGE',
+      editable: true,
     },
     {
       title: 'Your Gender',
-      subtitle: 'Yes, that should be your gender',
+      subtitle: '',
       placeholder: 'Gender',
       keyboardType: 'default',
-      value: '' || reduxGender,
+      value: reduxGender,
       type: 'GENDER',
+      editable: true,
     },
   ]);
 
   const [loading, setLoading] = useState(false);
   // message state
-  const [falshMessage, setFalshMessage] = useState(false);
-  const [falshMessageData, setFalshMessageData] = useState({
+  const [flashMessage, setFlashMessage] = useState(false);
+  const [flashMessageData, setFlashMessageData] = useState({
     message: '',
     description: '',
     type: '',
@@ -121,9 +111,25 @@ function BasicProfileInfo({ route, navigation }) {
     }
 
   };
-  useEffect(() => { }, []);
+  useEffect(() => {
+    // Ensure "Male" is preselected by default with COLORS.primary
+    const newList = list.map(item => {
+      if (item.type === 'GENDER' && !item.value) {
+        return { ...item, value: 'Male' };
+      }
+      return item;
+    });
+    setList(newList);
+  }, []);
 
-
+  useEffect(() => {
+    // Update the active gender button's background color
+    if (list[2]?.type === 'GENDER' && list[2]?.value === '') {
+      const updatedList = [...list];
+      updatedList[2].value = 'Male';
+      setList(updatedList);
+    }
+  }, [list]);
 
   // data
 
@@ -166,11 +172,24 @@ function BasicProfileInfo({ route, navigation }) {
     dispatch(setPersonalDetails(data));
     dispatch(setStep(3));
 
-    if (Platform.OS == 'ios') {
-      navigation.navigate('OnboardingQuestions_Redux');
-    } else {
-      navigation.navigate('LoadingForQs_test');
-    }
+
+
+
+    // PREVICIOUS NAVIGATION LOGIC
+
+    // if (Platform.OS === 'ios') {
+    //   try {
+    //     navigation.navigate('OnboardingQuestions_Redux');
+    //   } catch (error) {
+    //     console.log('Navigation error, trying alternative route');
+    //   }
+    // } else {
+    //   navigation.navigate('LoadingForQs_test');
+    // }
+
+
+    // NEW LOGGIC FOR NAVIGATION 
+    navigation.navigate('ChooseHowToAnswer');
   };
 
 
@@ -180,90 +199,8 @@ function BasicProfileInfo({ route, navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <GradientBackground>
-        {falshMessage && <FlashMessages falshMessageData={falshMessageData} />}
-        <BottomSheet height={250} ref={refBottomSheet}>
-          <View
-            style={{
-              justifyContent: 'space-between',
-              flexDirection: 'row',
-              width: responsiveWidth(100),
-            }}
-          >
-            <Text
-              style={{
-                padding: responsiveHeight(2),
-                fontSize: responsiveFontSize(2.5),
-                // fontFamily: fonts.JostMedium,
-                color: COLORS.primary,
-                alignSelf: 'center',
-              }}
-            >
-              Select Gender
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                refBottomSheet.current.close();
-              }}
-              style={{
-                padding: responsiveHeight(2),
-              }}
-            >
-              <Icon
-                name="times"
-                size={20}
-                color={COLORS.white}
+        {flashMessage && <FlashMessages flashMessageData={flashMessageData} />}
 
-
-              />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            onPress={() => {
-              const newList = list.map(item => {
-                if (item.type === 'GENDER') {
-                  return { ...item, value: genderList[0].name };
-                }
-                return item;
-              });
-              setList(newList);
-              refBottomSheet.current.close();
-            }}
-            style={{
-              borderBottomWidth: 1,
-              borderBottomColor: 'rgba(255, 255, 255, 0.24)',
-            }}>
-            <Text
-              style={{
-                padding: responsiveHeight(2),
-                fontSize: responsiveFontSize(2),
-                // fontFamily: fonts.JostMedium,
-                color: COLORS.white,
-              }}>
-              Male
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              const newList = list.map(item => {
-                if (item.type === 'GENDER') {
-                  return { ...item, value: genderList[1].name };
-                }
-                return item;
-              });
-              setList(newList);
-              refBottomSheet.current.close();
-            }}>
-            <Text
-              style={{
-                padding: responsiveHeight(2),
-                fontSize: responsiveFontSize(2),
-                // fontFamily: fonts.JostMedium,
-                color: COLORS.white,
-              }}>
-              {genderList[1].name}
-            </Text>
-          </TouchableOpacity>
-        </BottomSheet>
         <SafeAreaView
           style={{
             flex: 1,
@@ -307,29 +244,29 @@ function BasicProfileInfo({ route, navigation }) {
                 lineHeight: responsiveHeight(6),
                 fontFamily: fonts.PoppinsRegular,
                 marginTop: responsiveHeight(2),
+                marginHorizontal: responsiveWidth(3)
               }}>
               {list[activeIndex].title}
             </Text>
-            <Text
-              style={{
+
+            {/* {list[activeIndex].subtitle} */}
+            {list[activeIndex].type === 'FULL_NAME' && nameFromPreviousScreen && (
+              <Text style={{
+                color: COLORS.white, fontStyle: 'italic',
                 fontSize: responsiveFontSize(2),
-                color: COLORS.white,
-                marginVertical: responsiveHeight(1),
-                lineHeight: responsiveHeight(3),
-                textTransform: 'lowercase',
-                width: responsiveWidth(80),
-                fontFamily: fonts.PoppinsRegular,
-                fontWeight: '400',
+                width: responsiveWidth(80)
               }}>
-              {list[activeIndex].subtitle}
-            </Text>
+                {"\n"}(This name was provided automatically and cannot be edited)
+              </Text>
+            )}
+
 
             {list[activeIndex]?.type == 'GENDER' ? (
               <View style={{
                 flexDirection: 'row',
                 justifyContent: 'space-evenly',
                 marginHorizontal: responsiveWidth(2),
-                marginTop: responsiveHeight(5),
+                marginTop: responsiveHeight(2),
               }}>
                 <TouchableOpacity
                   style={{
@@ -345,6 +282,7 @@ function BasicProfileInfo({ route, navigation }) {
                   activeOpacity={0.8}
 
                   onPress={() => {
+
                     const newList = list.map(item => {
                       if (item.type === 'GENDER') {
                         return { ...item, value: genderList[0].name };
@@ -352,7 +290,7 @@ function BasicProfileInfo({ route, navigation }) {
                       return item;
                     });
                     setList(newList);
-                    refBottomSheet.current.close();
+
                   }}
                 >
 
@@ -380,7 +318,7 @@ function BasicProfileInfo({ route, navigation }) {
                       return item;
                     });
                     setList(newList);
-                    refBottomSheet.current.close();
+
                   }}
                   style={{
                     width: responsiveWidth(40),
@@ -419,23 +357,37 @@ function BasicProfileInfo({ route, navigation }) {
               <CustomInput
                 // inputRef={inputRef}
                 mainContainerStyle={{
-                  marginTop: responsiveHeight(5),
+                  marginTop: responsiveHeight(2),
                 }}
                 title={list[activeIndex].placeholder}
                 autoCapitalize="none"
                 placeholder={list[activeIndex].actualPlaceholder}
                 keyboardType={list[activeIndex].keyboardType}
+                editable={list[activeIndex].editable}
+                onFocus={() => {
+                  // Show alert if user tries to edit non-editable name field
+                  if (list[activeIndex].type === 'FULL_NAME' && !list[activeIndex].editable) {
+                    Alert.alert(
+                      "Cannot Edit Name",
+                      "This name was provided by your authentication method and cannot be edited.",
+                      [{ text: "OK", style: "default" }]
+                    );
+                  }
+                }}
                 onChangeText={text => {
-                  // Create a new array with updated value for the active input
-                  const newList = list.map((item, index) => {
-                    if (index === activeIndex) {
-                      // Use spread operator to update the value for the current item
-                      return { ...item, value: text };
-                    }
-                    return item;
-                  });
-                  // Update the state with the new array
-                  setList(newList);
+                  // Only allow editing if the field is editable
+                  if (list[activeIndex].editable) {
+                    // Create a new array with updated value for the active input
+                    const newList = list.map((item, index) => {
+                      if (index === activeIndex) {
+                        // Use spread operator to update the value for the current item
+                        return { ...item, value: text };
+                      }
+                      return item;
+                    });
+                    // Update the state with the new array
+                    setList(newList);
+                  }
                 }}
                 value={list[activeIndex].value}
               />
@@ -463,7 +415,7 @@ function BasicProfileInfo({ route, navigation }) {
                   list[activeIndex].type === 'FULL_NAME' &&
                   (list[activeIndex].value.trim().length < 3 || list[activeIndex].value.trim() === '')
                 ) {
-                  setFalshMessageData({
+                  setFlashMessageData({
                     message: 'Error',
                     description: 'Name must be at least 3 characters long',
                     type: 'info',
@@ -471,16 +423,16 @@ function BasicProfileInfo({ route, navigation }) {
                     backgroundColor: COLORS.red,
                     textColor: COLORS.white,
                   });
-                  setFalshMessage(true);
+                  setFlashMessage(true);
                   setTimeout(() => {
-                    setFalshMessage(false);
+                    setFlashMessage(false);
                   }, 3000);
                   return;
                 }
 
                 if (activeIndex < list.length - 1) {
-                  if (list[activeIndex].type === 'AGE' && list[activeIndex].value <= 18) {
-                    setFalshMessageData({
+                  if (list[activeIndex].type === 'AGE' && list[activeIndex].value < 18) {
+                    setFlashMessageData({
                       message: 'Error',
                       description: 'Age should be greater than 18',
                       type: 'info',
@@ -488,14 +440,14 @@ function BasicProfileInfo({ route, navigation }) {
                       backgroundColor: COLORS.red,
                       textColor: COLORS.white,
                     });
-                    setFalshMessage(true);
+                    setFlashMessage(true);
                     setTimeout(() => {
-                      setFalshMessage(false);
+                      setFlashMessage(false);
                     }, 3000);
                     return;
                   }
-                  if (list[activeIndex].type === 'AGE' && list[activeIndex].value >= 50) {
-                    setFalshMessageData({
+                  if (list[activeIndex].type === 'AGE' && list[activeIndex].value > 50) {
+                    setFlashMessageData({
                       message: 'Error',
                       description: 'Age should be less than 50',
                       type: 'info',
@@ -503,9 +455,9 @@ function BasicProfileInfo({ route, navigation }) {
                       backgroundColor: COLORS.red,
                       textColor: COLORS.white,
                     });
-                    setFalshMessage(true);
+                    setFlashMessage(true);
                     setTimeout(() => {
-                      setFalshMessage(false);
+                      setFlashMessage(false);
                     }, 3000);
                     return;
                   }
@@ -514,7 +466,7 @@ function BasicProfileInfo({ route, navigation }) {
                   // empty the input field
                 } else {
                   if (list[activeIndex].type === 'GENDER' && list[activeIndex].value === 'Select_Gender') {
-                    setFalshMessageData({
+                    setFlashMessageData({
                       message: 'Error',
                       description: 'Please select Gender',
                       type: 'info',
@@ -522,9 +474,9 @@ function BasicProfileInfo({ route, navigation }) {
                       backgroundColor: COLORS.red,
                       textColor: COLORS.white,
                     });
-                    setFalshMessage(true);
+                    setFlashMessage(true);
                     setTimeout(() => {
-                      setFalshMessage(false);
+                      setFlashMessage(false);
                     }, 3000);
                     return;
                   }

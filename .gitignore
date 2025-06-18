@@ -135,3 +135,4 @@ ios/Podfile.lock
 ios/build
 ios/DerivedData
 server/
+server.zip

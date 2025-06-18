@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  Image, Platform, PermissionsAndroid,
+  View, Text, TouchableOpacity, StyleSheet, Platform, PermissionsAndroid,
   ActivityIndicator
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { fonts } from '../../../../consts/fonts';
 
-import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+// import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription } from '@daily-co/react-native-webrtc';
 import io from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
 import { node_base_url } from '../../../../consts/baseUrls';

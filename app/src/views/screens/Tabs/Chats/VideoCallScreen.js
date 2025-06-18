@@ -1,16 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  Image, Platform, PermissionsAndroid,
-  ActivityIndicator
+  View, Text, TouchableOpacity, StyleSheet, Platform, PermissionsAndroid,
+  ActivityIndicator, ScrollView
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { fonts } from '../../../../consts/fonts';
 
-import {
-  RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription,
-  peerConnection
-} from 'react-native-webrtc';
+// import {RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription, peerConnection } from 'react-native-webrtc';
+import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription, peerConnection } from '@daily-co/react-native-webrtc';
 import io from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
 import { node_base_url } from '../../../../consts/baseUrls';
@@ -19,10 +15,16 @@ import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-nat
 import {
   answerTheCall,
   endTheCall,
-  initateTheCall
+  initateTheCall,
+  reportUser,
+  blockUser
 } from '../../../../Services/Auth/SignupService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
+import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
+import CustomInput from '../../../../components/CustomInput/CustomInput';
+import PrimaryButton from '../../../../components/Button/PrimaryButton';
+import fonts from '../../../../consts/fonts';
 
 const generateTurnCredentials = (secret) => {
   const timestamp = Math.floor(Date.now() / 1000) + 3600; // Valid for 1 hour in the future
@@ -87,9 +89,74 @@ const configuration = {
 };
 
 const VideoCallScreen = React.memo(({ route, navigation }) => {
-  const { currentUser, otherUser, otherUserName, otherUserImage, fromNotification } = route.params;
+  const { currentUser, otherUser, otherUserName, otherUserImage, fromNotification } = route.params || {};
 
+  const refRBSheet = useRef();
+  const refMenuSheet = useRef();
+  const refBlockSheet = useRef();
+  const [reason, setReason] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
 
+  const handleReportUser = async () => {
+    setReportLoading(true);
+    if (reason === '') {
+      alert('Please enter reason');
+      setReportLoading(false);
+      return;
+    }
+    try {
+      const data = {
+        reported_by_user_id: currentUser,
+        reported_user_id: otherUser,
+        reason: reason,
+      };
+      console.log('report user data:', data);
+      const response = await reportUser(data);
+      setReportLoading(false);
+      if (!response?.error) {
+        handleEndCall();
+        alert('User reported successfully');
+        refRBSheet.current.close();
+        navigation.navigate('MyTabs', {
+          screen: 'HomePage',
+          params: { isUpdated: true },
+        });
+      } else {
+        alert('Failed to report user. Please try again.');
+      }
+    } catch (error) {
+      setReportLoading(false);
+      console.error('Error reporting user:', error);
+    }
+  };
+
+  const handleBlockUser = async () => {
+    setBlockLoading(true);
+    try {
+      const data = {
+        blocked_by_user_id: currentUser,
+        blocked_user_id: otherUser,
+      };
+      console.log('block user data:', data);
+      const response = await blockUser(data);
+      setBlockLoading(false);
+      if (!response?.error) {
+        handleEndCall();
+        alert('User blocked successfully');
+        refBlockSheet.current.close();
+        navigation.navigate('MyTabs', {
+          screen: 'HomePage',
+          params: { isUpdated: true },
+        });
+      } else {
+        alert('Failed to block user. Please try again.');
+      }
+    } catch (error) {
+      setBlockLoading(false);
+      console.error('Error blocking user:', error);
+    }
+  };
 
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -116,56 +183,6 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
   };
 
   const roomName = useRef(`room_${[currentUser, otherUser].sort().join('_')}`);
-
-  // useEffect(() => {
-
-
-  //   AsyncStorage.removeItem('incomingCall');
-  //   AsyncStorage.removeItem('callData');
-
-  //   console.log('Initializing socket connection...');
-  //   socket.current = io(node_base_url);
-  //   socket.current.emit('joinVideoCall', { user1Id: currentUser, user2Id: otherUser });
-
-  //   // Listen for other user joining and send offer
-  //   socket.current.on('user-joined', (data) => {
-  //     console.log('Other user has joined the call:', data);
-  //     // 
-  //     setLoading(false);
-  //     setLoadingText('');
-  //     createOffer();
-  //   });
-
-  //   socket.current.on('offer', handleOffer);
-  //   socket.current.on('answer', handleAnswer);
-  //   socket.current.on('ice-candidate', handleIceCandidate);
-  //   socket.current.on('end-Videocall', () => {
-  //     console.log('Other user has ended the call');
-  //     peerConnection.current.close();
-  //     if (localStream) localStream.release();
-  //     if (remoteStream) remoteStream.release();
-  //     InCallManager.stop();
-  //     setLoading(false);
-  //     setLoadingText('');
-  //     navigation.goBack();
-  //   });
-
-  //   startLocalStream();
-  //   // after startLocalStream() initiate call
-
-  //   console.log('from notification:', fromNotification);
-  //   if (!fromNotification) {
-  //     initateCall();
-  //   }
-
-  //   return () => {
-  //     console.log('Cleaning up...');
-  //     peerConnection.current.close();
-  //     if (localStream) localStream.release();
-  //     if (remoteStream) remoteStream.release();
-  //     socket.current.disconnect();
-  //   };
-  // }, []);
 
   useEffect(() => {
     const initializeCall = async () => {
@@ -205,7 +222,17 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
         InCallManager.stop();
         setLoading(false);
         setLoadingText('');
-        navigation.goBack();
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'MyTabs',
+              params: {
+                screen: 'Home',
+              },
+            },
+          ],
+        });
       });
 
       // Start local stream after permissions are granted
@@ -242,9 +269,9 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
       setLocalStream(stream);
-      InCallManager.start();
+      InCallManager.start({ media: 'video' });
       // 
-      InCallManager.setForceSpeakerphoneOn(isSpeakerEnabled);
+      InCallManager.setForceSpeakerphoneOn(true);
       initPeerConnection(stream);
       // setTimeout(() => {
       //   setBandwidthConstraints();
@@ -260,7 +287,7 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
       // goBack();
 
     }
-  }, [isSpeakerEnabled]);
+  }, []);
 
   const initPeerConnection = (stream) => {
     console.log('Initializing peer connection...');
@@ -271,6 +298,7 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
         setLoading(false); // Hide loading once remote stream is available
+        InCallManager.setForceSpeakerphoneOn(true);
 
       }
     };
@@ -376,7 +404,17 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
     InCallManager.stop();
     setLoading(false);
     setLoadingText('');
-    navigation.goBack();
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'MyTabs',
+          params: {
+            screen: 'Home',
+          },
+        },
+      ],
+    });
   };
   const initateCall = async () => {
 
@@ -480,7 +518,7 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
               borderColor: 'rgba(255, 255, 255, 0.16)',
               overflow: 'hidden',
               position: 'absolute',
-              top: responsiveHeight(7),
+              top: responsiveHeight(5),
               left: responsiveWidth(5),
               zIndex: 9999,
 
@@ -489,6 +527,28 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
               handleEndCall();
             }}
           />
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: responsiveHeight(7),
+              right: responsiveWidth(5),
+              zIndex: 9999,
+              backgroundColor: 'rgba(255, 255, 255, 0.10)',
+              borderRadius: 30,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.16)',
+              padding: responsiveWidth(2),
+            }}
+            onPress={() => {
+              refMenuSheet.current.open();
+            }}
+          >
+            <Icon
+              name="ellipsis-v"
+              size={responsiveFontSize(2)}
+              color={COLORS.white}
+            />
+          </TouchableOpacity>
           {localStream &&
             <View
               style={{
@@ -508,7 +568,7 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
         </View>
         <View style={styles.buttonsContainer}>
           <TouchableOpacity style={[styles.button, {
-            paddingHorizontal: responsiveWidth(5.5),
+            // paddingHorizontal: responsiveWidth(5.5),
           }]}
             onPress={toggleMicrophone}
           >
@@ -520,14 +580,14 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
             />
           </TouchableOpacity> */}
           <TouchableOpacity style={[styles.button, {
-            paddingHorizontal: responsiveWidth(5),
+            // paddingHorizontal: responsiveWidth(5),
           }]}
             onPress={switchCamera}
           >
             <Icon name="rotate-right" size={24} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.button, {
-            paddingHorizontal: responsiveWidth(5),
+            // paddingHorizontal: responsiveWidth(5),
           }]}
             onPress={() => {
               handleEndCall();
@@ -544,7 +604,195 @@ const VideoCallScreen = React.memo(({ route, navigation }) => {
 
 
         </View>
+        <BottomSheet height={responsiveHeight(60)} ref={refRBSheet}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={{
+              marginTop: responsiveHeight(3),
+            }}>
+              <Text style={{
+                color: COLORS.white,
+                fontSize: responsiveFontSize(2.5),
+                fontFamily: fonts.PoppinsMedium,
+                textAlign: 'center',
+                width: responsiveWidth(70),
+                marginVertical: responsiveHeight(2),
+                alignSelf: 'center',
+              }}>
+                Are you sure you want to Report this user?
+              </Text>
+              <CustomInput
+                mainContainerStyle={{
+                  marginTop: responsiveHeight(2),
+                }}
+                title="Add Reason"
+                titleStyle={{
+                  marginBottom: responsiveHeight(1),
+                }}
+                autoCapitalize="none"
+                keyboardType="default"
+                multiline={true}
+                onChangeText={setReason}
+                style={{
+                  height: responsiveHeight(15),
+                  backgroundColor: '#FFFFFF29',
+                  width: responsiveWidth(90),
+                  color: COLORS.white,
+                  fontFamily: fonts.PoppinsRegular,
+                  fontSize: responsiveFontSize(2),
+                  borderRadius: 15,
+                  padding: responsiveWidth(3),
+                }}
+              />
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-around',
+                width: responsiveWidth(70),
+                alignSelf: 'center',
+                marginTop: responsiveHeight(2),
+              }}>
+                <PrimaryButton
+                  title="Cancel"
+                  onPress={() => refRBSheet.current.close()}
+                  style={{
+                    alignSelf: 'center',
+                    width: responsiveWidth(30),
+                    backgroundColor: COLORS.primary,
+                    padding: 0,
+                  }}
+                />
+                <PrimaryButton
+                  title="Confirm"
+                  onPress={handleReportUser}
+                  style={{
+                    alignSelf: 'center',
+                    width: responsiveWidth(30),
+                    padding: 0,
+                  }}
+                  loading={reportLoading}
+                />
+              </View>
+            </View>
+          </ScrollView>
+        </BottomSheet>
 
+        {/* Menu Bottom Sheet */}
+        <BottomSheet height={responsiveHeight(25)} ref={refMenuSheet}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={{
+              marginTop: responsiveHeight(3),
+              paddingHorizontal: responsiveWidth(5),
+            }}>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: responsiveHeight(2),
+                  borderBottomWidth: 1,
+                  borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+                }}
+                onPress={() => {
+                  refMenuSheet.current.close();
+                  setTimeout(() => {
+                    refRBSheet.current.open();
+                  }, 300);
+                }}
+              >
+                <Icon name="flag" size={20} color={COLORS.white} style={{ marginRight: responsiveWidth(4) }} />
+                <Text style={{
+                  color: COLORS.white,
+                  fontSize: responsiveFontSize(2),
+                  fontFamily: fonts.PoppinsRegular,
+                }}>
+                  Report User
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: responsiveHeight(2),
+                }}
+                onPress={() => {
+                  refMenuSheet.current.close();
+                  setTimeout(() => {
+                    refBlockSheet.current.open();
+                  }, 300);
+                }}
+              >
+                <Icon name="ban" size={20} color={COLORS.white} style={{ marginRight: responsiveWidth(4) }} />
+                <Text style={{
+                  color: COLORS.white,
+                  fontSize: responsiveFontSize(2),
+                  fontFamily: fonts.PoppinsRegular,
+                }}>
+                  Block User
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </BottomSheet>
+
+        {/* Block User Bottom Sheet */}
+        <BottomSheet height={responsiveHeight(35)} ref={refBlockSheet}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={{
+              marginTop: responsiveHeight(3),
+            }}>
+              <Text style={{
+                color: COLORS.white,
+                fontSize: responsiveFontSize(2.5),
+                fontFamily: fonts.PoppinsMedium,
+                textAlign: 'center',
+                width: responsiveWidth(70),
+                marginVertical: responsiveHeight(2),
+                alignSelf: 'center',
+              }}>
+                Are you sure you want to Block this user?
+              </Text>
+              <Text style={{
+                color: COLORS.lightGray,
+                fontSize: responsiveFontSize(1.8),
+                fontFamily: fonts.PoppinsRegular,
+                textAlign: 'center',
+                width: responsiveWidth(80),
+                marginVertical: responsiveHeight(1),
+                alignSelf: 'center',
+              }}>
+                You won't be able to see their profile, send messages, or receive calls from them.
+              </Text>
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-around',
+                width: responsiveWidth(70),
+                alignSelf: 'center',
+                marginTop: responsiveHeight(3),
+              }}>
+                <PrimaryButton
+                  title="Cancel"
+                  onPress={() => refBlockSheet.current.close()}
+                  style={{
+                    alignSelf: 'center',
+                    width: responsiveWidth(30),
+                    backgroundColor: COLORS.primary,
+                    padding: 0,
+                  }}
+                />
+                <PrimaryButton
+                  title="Block"
+                  onPress={handleBlockUser}
+                  style={{
+                    alignSelf: 'center',
+                    width: responsiveWidth(30),
+                    padding: 0,
+                    backgroundColor: COLORS.warning,
+                  }}
+                  loading={blockLoading}
+                />
+              </View>
+            </View>
+          </ScrollView>
+        </BottomSheet>
       </View>
     </>
   );
@@ -574,14 +822,20 @@ const styles = StyleSheet.create({
   },
   buttonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
     marginBottom: responsiveHeight(5),
+
   },
   button: {
-    padding: 20,
+    // padding: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: responsiveWidth(15),
     borderWidth: 1,
+    width: responsiveWidth(15),
+    height: responsiveWidth(15),
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignContent: 'center',
     borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   buttonText: {

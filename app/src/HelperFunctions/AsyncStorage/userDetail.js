@@ -1,6 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React from 'react';
-import { ActivityIndicator, SafeAreaView } from 'react-native';
 
 // get user login detail
 const getUserDetail = async () => {

@@ -1,7 +1,6 @@
-import { StyleSheet, Image, Text, View, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { StyleSheet, Image, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import React from 'react';
 // import { Image } from 'moti';
-import Images from '../../consts/Images';
 import { width, height } from '../../consts/Dimension';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import COLORS from '../../consts/colors';
@@ -13,18 +12,22 @@ const SecondaryButton = props => {
         props.onPress();
       }}
       activeOpacity={0.6}
-      style={{
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF14',
-        width: responsiveWidth(90),
-        borderRadius: responsiveWidth(4),
-        borderWidth: 1,
-        borderColor: '#FFFFFF3D',
-        marginVertical: responsiveHeight(.7),
-        paddingVertical: responsiveHeight(.7),
-      }}>
+      style={
+        [{
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexDirection: 'row',
+          backgroundColor: '#FFFFFF14',
+          width: responsiveWidth(90),
+          borderRadius: responsiveWidth(4),
+          borderWidth: 1,
+          borderColor: '#FFFFFF3D',
+          marginVertical: responsiveHeight(.7),
+          paddingVertical: responsiveHeight(.7)
+
+        }, {
+          ...props?.style
+        }]}>
       <ActivityIndicator
         size="small"
         style={{
@@ -43,6 +46,7 @@ const SecondaryButton = props => {
           alignSelf: 'center',
           marginRight: responsiveWidth(2),
           // backgroundColor: COLORS.white,
+          ...props.imageStyle,
         }}
       />
 

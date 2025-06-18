@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Image, Platform, PermissionsAndroid,
-  ActivityIndicator
+  Image,
+  ActivityIndicator,
+  ScrollView
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { fonts } from '../../../../consts/fonts';
 
-import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+// import { RTCPeerConnection, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+import { RTCPeerConnection, mediaDevices, RTCIceCandidate, RTCSessionDescription } from '@daily-co/react-native-webrtc';
 import io from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
 import { node_base_url } from '../../../../consts/baseUrls';
@@ -16,12 +17,18 @@ import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-nat
 import {
   answerTheCall,
   endTheCall,
-  initateTheCall
+  initateTheCall,
+  reportUser,
+  blockUser
 } from '../../../../Services/Auth/SignupService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
+import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
+import CustomInput from '../../../../components/CustomInput/CustomInput';
+import PrimaryButton from '../../../../components/Button/PrimaryButton';
 
 import CryptoJS from 'crypto-js';
+import fonts from '../../../../consts/fonts';
 
 const generateTurnCredentials = (secret) => {
   const timestamp = Math.floor(Date.now() / 1000) + 3600; // Valid for 1 hour in the future
@@ -105,6 +112,67 @@ const configuration = {
 const VideoCallScreen = ({ route, navigation }) => {
   const { currentUser, otherUser, otherUserName, otherUserImage, fromNotification } = route.params;
 
+  const refRBSheet = useRef();
+  const refMenuSheet = useRef();
+  const refBlockSheet = useRef();
+  const [reason, setReason] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
+  // report user
+  const handleReportUser = async () => {
+    setReportLoading(true);
+    if (reason === '') {
+      alert('Please enter reason');
+      setReportLoading(false);
+      return;
+    }
+    try {
+      const data = {
+        reported_by_user_id: currentUser,
+        reported_user_id: otherUser,
+        reason: reason,
+      };
+      console.log('report user data:', data);
+      const response = await reportUser(data);
+      setReportLoading(false);
+      if (!response?.error) {
+        alert('User reported successfully');
+        refRBSheet.current.close();
+        handleEndCall();
+        navigation.goBack();
+      } else {
+        alert('Failed to report user. Please try again.');
+      }
+    } catch (error) {
+      setReportLoading(false);
+      console.error('Error reporting user:', error);
+    }
+  };
+
+  // block user
+  const handleBlockUser = async () => {
+    setBlockLoading(true);
+    try {
+      const data = {
+        blocked_by_user_id: currentUser,
+        blocked_user_id: otherUser,
+        reason: '', // Empty reason for block user
+      };
+      const response = await blockUser(data);
+      setBlockLoading(false);
+      if (!response?.error) {
+        alert('User blocked successfully');
+        refBlockSheet.current.close();
+        handleEndCall();
+        navigation.goBack();
+      } else {
+        alert('Failed to block user. Please try again.');
+      }
+    } catch (error) {
+      setBlockLoading(false);
+      console.error('Error blocking user:', error);
+    }
+  };
 
 
   const [localStream, setLocalStream] = useState(null);
@@ -112,7 +180,7 @@ const VideoCallScreen = ({ route, navigation }) => {
   const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [loadingText, setLoadingText] = useState('');
+  const [loadingText, setLoadingText] = useState('Connecting...');
   const peerConnection = useRef(new RTCPeerConnection(configuration));
   const socket = useRef(null);
   const roomName = useRef(`room_${[currentUser, otherUser].sort().join('_')}`);
@@ -147,7 +215,17 @@ const VideoCallScreen = ({ route, navigation }) => {
       InCallManager.stop();
       setLoading(false);
       setLoadingText('');
-      navigation.goBack();
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'MyTabs',
+            params: {
+              screen: 'Home',
+            },
+          },
+        ],
+      });
     });
 
     startLocalStream();
@@ -155,6 +233,7 @@ const VideoCallScreen = ({ route, navigation }) => {
 
     console.log('from notification:', fromNotification);
     if (!fromNotification) {
+      // disable call for time being
       initateCall();
     }
 
@@ -290,7 +369,17 @@ const VideoCallScreen = ({ route, navigation }) => {
     InCallManager.stop();
     setLoading(false);
     setLoadingText('');
-    navigation.goBack();
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'MyTabs',
+          params: {
+            screen: 'Home',
+          },
+        },
+      ],
+    });
   };
   const initateCall = async () => {
 
@@ -314,16 +403,40 @@ const VideoCallScreen = ({ route, navigation }) => {
   };
 
   return (
-    <>
+    <GradientBackground>
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: responsiveHeight(6),
+          right: responsiveWidth(5),
+          zIndex: 9999,
+          backgroundColor: 'rgba(255, 255, 255, 0.10)',
+          borderRadius: 30,
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.16)',
+          padding: responsiveWidth(4),
+          paddingHorizontal: responsiveWidth(5),
+        }}
+        onPress={() => {
+          refMenuSheet.current.open();
+        }}
+      >
+        <Icon
+          name="ellipsis-v"
+          size={responsiveFontSize(2)}
+          color={COLORS.white}
+        />
+      </TouchableOpacity>
       <View
         style={{
           flex: 1,
-          backgroundColor: COLORS.black,
+          // backgroundColor: COLORS.black,
           alignContent: 'center',
           justifyContent: 'center',
           display: loading ? 'flex' : 'none',
         }}
       >
+
         <Icon
           name="chevron-left"
           size={responsiveFontSize(2.5)}
@@ -336,7 +449,7 @@ const VideoCallScreen = ({ route, navigation }) => {
             borderColor: 'rgba(255, 255, 255, 0.16)',
             overflow: 'hidden',
             position: 'absolute',
-            top: responsiveHeight(7),
+            top: responsiveHeight(6),
             left: responsiveWidth(5),
             zIndex: 9999,
             display:
@@ -361,7 +474,7 @@ const VideoCallScreen = ({ route, navigation }) => {
           {loadingText}
         </Text>
       </View>
-      <GradientBackground style={[styles.container, {
+      <View style={[styles.container, {
         display: loading ? 'none' : 'flex',
       }]}>
         {/* <TouchableOpacity
@@ -388,8 +501,10 @@ const VideoCallScreen = ({ route, navigation }) => {
             INITIATE CALL
           </Text>
         </TouchableOpacity> */}
+
         <View style={[styles.videoContainer, {
           display: loading ? 'none' : 'flex',
+
         }]}>
           <Icon
             name="chevron-left"
@@ -457,7 +572,7 @@ const VideoCallScreen = ({ route, navigation }) => {
           display: loading ? 'none' : 'flex',
         }]}>
           <TouchableOpacity style={[styles.button, {
-            paddingHorizontal: responsiveWidth(5.5),
+            // paddingHorizontal: responsiveWidth(5.5),
           }]}
             onPress={toggleMicrophone}
           >
@@ -465,19 +580,19 @@ const VideoCallScreen = ({ route, navigation }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.button, {
-              paddingHorizontal: responsiveWidth(5),
+              // paddingHorizontal: responsiveWidth(5),
             }]}
             onPress={toggleSpeaker}
           >
             <Icon
-              name={isSpeakerEnabled ? "volume-up" : "volume-off"} // Adjust the icon based on the state
+              name={!isSpeakerEnabled ? "volume-up" : "volume-off"} // Adjust the icon based on the state
               size={24}
               color="white"
             />
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.button, {
-            paddingHorizontal: responsiveWidth(5),
+            // paddingHorizontal: responsiveWidth(5),
           }]}
             onPress={() => {
               handleEndCall();
@@ -495,15 +610,218 @@ const VideoCallScreen = ({ route, navigation }) => {
 
         </View>
 
-      </GradientBackground>
-    </>
+      </View>
+
+      {/* Report User Bottom Sheet */}
+      <BottomSheet height={responsiveHeight(60)} ref={refRBSheet}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+          <View style={{
+            marginTop: responsiveHeight(3),
+          }}>
+            <Text style={{
+              color: COLORS.white,
+              fontSize: responsiveFontSize(2.5),
+              fontFamily: fonts.PoppinsMedium,
+              textAlign: 'center',
+              width: responsiveWidth(70),
+              marginVertical: responsiveHeight(2),
+              alignSelf: 'center',
+            }}>
+              Are you sure you want to{'\n'} report this user?
+            </Text>
+            <CustomInput
+              mainContainerStyle={{
+                marginTop: responsiveHeight(2),
+              }}
+              title="Add Reason"
+              titleStyle={{
+                marginBottom: responsiveHeight(1),
+              }}
+              autoCapitalize="none"
+              keyboardType="default"
+              multiline={true}
+              onChangeText={setReason}
+              style={{
+                height: responsiveHeight(15),
+                backgroundColor: '#FFFFFF29',
+                width: responsiveWidth(90),
+                color: COLORS.white,
+                fontFamily: fonts.PoppinsRegular,
+                fontSize: responsiveFontSize(2),
+                borderRadius: 15,
+                padding: responsiveWidth(3),
+              }}
+            />
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-around',
+              width: responsiveWidth(70),
+              alignSelf: 'center',
+              marginTop: responsiveHeight(2),
+              marginBottom: responsiveHeight(2),
+            }}>
+              <PrimaryButton
+                title="Cancel"
+                onPress={() => refRBSheet.current.close()}
+                style={{
+                  alignSelf: 'center',
+                  width: responsiveWidth(30),
+                  backgroundColor: COLORS.primary,
+                  padding: 0,
+                }}
+              />
+              <PrimaryButton
+                title="Confirm"
+                onPress={handleReportUser}
+                style={{
+                  alignSelf: 'center',
+                  width: responsiveWidth(30),
+                  padding: 0,
+                }}
+                loading={reportLoading}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </BottomSheet>
+
+      {/* Menu Bottom Sheet */}
+      <BottomSheet height={responsiveHeight(30)} ref={refMenuSheet}>
+        <View style={{ marginTop: responsiveHeight(3), paddingHorizontal: responsiveWidth(5) }}>
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: responsiveHeight(2),
+              paddingHorizontal: responsiveWidth(5),
+              marginBottom: responsiveHeight(1),
+              borderRadius: 15,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            }}
+            onPress={() => {
+              refMenuSheet.current.close();
+              setTimeout(() => refBlockSheet.current.open(), 300);
+            }}
+          >
+            <Icon name="ban" size={responsiveFontSize(2.5)} color={COLORS.white} />
+            <Text style={{
+              color: COLORS.white,
+              fontSize: responsiveFontSize(2.2),
+              fontFamily: fonts.PoppinsMedium,
+              marginLeft: responsiveWidth(4),
+            }}>
+              Block User
+            </Text>
+          </TouchableOpacity>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              width: '100%',
+              borderRadius: 15,
+              borderWidth: 1,
+              borderColor: COLORS.greylight
+            }}
+          />
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: responsiveHeight(2),
+              paddingHorizontal: responsiveWidth(5),
+              marginBottom: responsiveHeight(2),
+              borderRadius: 15,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            }}
+            onPress={() => {
+              refMenuSheet.current.close();
+              setTimeout(() => refRBSheet.current.open(), 300);
+            }}
+          >
+            <Icon name="flag" size={responsiveFontSize(2.5)} color={COLORS.white} />
+            <Text style={{
+              color: COLORS.white,
+              fontSize: responsiveFontSize(2.2),
+              fontFamily: fonts.PoppinsMedium,
+              marginLeft: responsiveWidth(4),
+            }}>
+              Report User
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
+
+      {/* Block User Bottom Sheet */}
+      <BottomSheet height={responsiveHeight(50)} ref={refBlockSheet}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+          <View style={{ marginTop: responsiveHeight(3) }}>
+            <Icon
+              name="ban"
+              size={responsiveFontSize(3.5)}
+              color={COLORS.white}
+              style={{ alignSelf: 'center' }}
+            />
+            <Text style={{
+              color: COLORS.white,
+              fontSize: responsiveFontSize(2.5),
+              fontFamily: fonts.PoppinsMedium,
+              textAlign: 'center',
+              width: responsiveWidth(70),
+              marginVertical: responsiveHeight(2),
+              alignSelf: 'center',
+            }}>
+              Are you sure you want to{'\n'} block this user?
+            </Text>
+            <Text style={{
+              color: COLORS.white,
+              fontSize: responsiveFontSize(1.5),
+              fontFamily: fonts.PoppinsMedium,
+              textAlign: 'center',
+              width: responsiveWidth(70),
+              alignSelf: 'center',
+            }}>
+              Blocking a user will prevent you and them from sending you messages or viewing your profile.
+            </Text>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-around',
+              width: responsiveWidth(70),
+              alignSelf: 'center',
+              marginTop: responsiveHeight(2),
+              marginBottom: responsiveHeight(2),
+            }}>
+              <PrimaryButton
+                title="Cancel"
+                onPress={() => refBlockSheet.current.close()}
+                style={{
+                  alignSelf: 'center',
+                  width: responsiveWidth(30),
+                  backgroundColor: COLORS.primary,
+                  padding: 0,
+                }}
+              />
+              <PrimaryButton
+                title="Block"
+                onPress={handleBlockUser}
+                style={{
+                  alignSelf: 'center',
+                  width: responsiveWidth(30),
+                  padding: 0,
+                }}
+                loading={blockLoading}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </BottomSheet>
+    </GradientBackground >
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: 'transparent',
   },
   videoContainer: {
     flex: 1,
@@ -529,10 +847,15 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   button: {
-    padding: 20,
+    // padding: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: responsiveWidth(15),
     borderWidth: 1,
+    width: responsiveWidth(15),
+    height: responsiveWidth(15),
+    alignItems: 'center',
+    alignContent: 'center',
+    justifyContent: 'center',
     borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   buttonText: {

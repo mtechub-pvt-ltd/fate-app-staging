@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet, Dimensions, SafeAreaView } from 'react-native';
 import Animated, { Easing, useSharedValue, useAnimatedStyle, withTiming, withRepeat } from 'react-native-reanimated';
 import Images from '../../../../consts/Images';
-import { getUserDetail, storeUserDetail, getRulletCountToday, storeRulletCountToday } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import { getUserDetail, getRulletCountToday, storeRulletCountToday } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import { Text } from 'react-native-paper';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import { responsiveWidth } from 'react-native-responsive-dimensions';
 import COLORS from '../../../../consts/colors';
-import SecondaryButton from '../../../../components/Button/SecondaryButton';
 import {
   findUserInWaitingPool,
   addUserInWaitingPool,
@@ -58,11 +57,11 @@ const CircularImageSpotlight = ({ route, navigation }) => {
         setTotalAllowedRullet(0);
         setLoading(false);  // Stop loading if free user
         return;  // Exit early
-      } else if (subscriptionType === 'silvermonthly12345') {
+      } else if (subscriptionType === 'silvermonthly12345_new') {
         allowedRulletCount = 20;
-      } else if (subscriptionType === 'goldmonthly12345') {
+      } else if (subscriptionType === 'goldmonthly12345_new') {
         allowedRulletCount = 50;
-      } else if (subscriptionType === 'platinummonthly12345') {
+      } else if (subscriptionType === 'platinummonthly12345_new') {
         allowedRulletCount = 10;
       }
 

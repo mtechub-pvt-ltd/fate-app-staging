@@ -4,45 +4,54 @@ import {
   Text,
   SafeAreaView,
   ScrollView,
-  Animated,
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   FlatList,
   ImageBackground,
   Platform,
   PermissionsAndroid,
-  KeyboardAvoidingView
+  Alert,
+  Linking,
+  ActivityIndicator
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Images from '../../../../consts/Images';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+// import { useDispatch, useSelector } from 'react-redux';
+// import { setPhotos, setProfilePicture } from '../../../../redux/actions/formAction';
+// import { Camera, ImageIcon, PlusCircle, XCircle } from 'lucide-react-native';
+// import { COLORS } from '../../../../consts/Colors';
+// import { fonts } from '../../../../consts/Fonts';
+// import PrimaryButton from '../../../components/Button';
+// import GradientBackground from '../../../components/GradientBackground';
+// import Header from '../../../components/Header';
+// import TopBar from '../../../components/TopBar';
+// import BottomSheet from '../../../components/BottomSheet';
+// import DraggableGrid from 'react-native-draggable-grid';
+// import { openSettings, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
 import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import TopBar from '../../../../components/TopBar/TopBar';
 import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
 import { DraggableGrid } from 'react-native-draggable-grid';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import ImagePicker from 'react-native-image-crop-picker';
-import { setActive } from 'react-native-sound';
-import { base_url, cloudinary_upload_preset, node_base_url } from '../../../../consts/baseUrls';
-import { updateUserProfileData } from '../../../../Services/Auth/SignupService';
-import ChevronLeft from '../../../../components/ChevronLeft/ChevronLeft';
+// import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { node_base_url } from '../../../../consts/baseUrls';
 import {
   PlusCircle, XCircle, Camera,
   Image as ImageIcon
 } from 'phosphor-react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { setPhotos, setProfilePicture } from '../../../../redux/features/form/formSlice';
+import { check, request, PERMISSIONS, RESULTS, openSettings } from 'react-native-permissions';
+import CameraUtils from '../../../../utils/CameraUtils';
 
 
 function AddYourPhotos({ navigation }) {
@@ -51,203 +60,205 @@ function AddYourPhotos({ navigation }) {
   const [alert_one_image, setAlert_one_image] = useState(false);
 
   //  redux data
-  const photos = useSelector((state) => state.form.photos);
-  const profilePicture = useSelector((state) => state.form.profilePic);
+  const photos = useSelector((state) => state.form.photos) || [];
+  const profilePicture = useSelector((state) => state.form.profilePic) || { uri: '' };
   const dispatch = useDispatch();
   const [newPhotos, setNewPhotos] = useState([]);
   const refBottomSheet = useRef(null);
   const refBottomSheet2 = useRef(null);
   const [loading, setLoading] = useState(false);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
 
   const Total = 9;
-  // const openGallery = async () => {
-  //   try {
-  //     const firstEmptyIndex = photos.findIndex(p => p.image === '');
-  //     if (firstEmptyIndex === -1) {
-  //       console.log('No empty slots available');
-  //       return;
-  //     }
-
-  //     launchImageLibrary(
-  //       {
-  //         mediaType: 'photo',
-  //         includeBase64: false,
-  //         maxHeight: 1200,
-  //         maxWidth: 1200,
-  //         selectionLimit: 1, // Assuming you want to pick one image at a time
-  //       },
-  //       response => {
-  //         refBottomSheet.current.close();
-  //         if (response.didCancel) {
-  //           console.log('User cancelled image picker');
-  //         } else if (response.errorCode) {
-  //           console.log('ImagePicker Error: ', response.errorCode);
-  //         } else if (response.errorMessage) {
-  //           console.log('ImagePicker Error: ', response.errorMessage);
-  //         } else {
-  //           if (activeTab === tabs[1]) {
-  //             setProfilePicture({
-  //               uri: response.assets[0].uri,
-  //             });
-  //           } else {
-  //             const newPhotos = [...photos];
-  //             if (response.assets && response.assets.length > 0) {
-  //               newPhotos[firstEmptyIndex].image = response.assets[0].uri; // Update the first empty slot with the new image
-  //               setPhotos(newPhotos);
-  //             }
-  //           }
-  //         }
-  //       },
-  //     );
-  //   } catch (err) {
-  //     console.error(err);
-  //   }
-  // };
   const openGallery = async () => {
     try {
-      launchImageLibrary(
-        {
-          mediaType: 'photo',
-          includeBase64: false,
-          maxHeight: 1200,
-          maxWidth: 1200,
-          selectionLimit: 1, // Limit to one image at a time
-        },
-        (response) => {
-          refBottomSheet.current.close();
+      console.log('Opening gallery function called');
+      setGalleryLoading(true);
 
-          if (response.didCancel) {
-            console.log('User cancelled image picker');
-          } else if (response.errorCode) {
-            console.log('ImagePicker Error: ', response.errorCode);
-          } else if (response.errorMessage) {
-            console.log('ImagePicker Error: ', response.errorMessage);
-          } else if (response.assets && response.assets.length > 0) {
+      if (Platform.OS === 'android') {
+        const permission =
+          Platform.Version >= 33
+            ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+            : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+
+        const result = await PermissionsAndroid.request(permission);
+
+        if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert(
+            'Permission Denied',
+            'Gallery permission is required to select photos.',
+          );
+          setGalleryLoading(false);
+          return;
+        }
+      } else {
+        const permissionResult = await CameraUtils.requestGalleryPermission();
+        if (!permissionResult.success) {
+          setGalleryLoading(false);
+          if (permissionResult.showSettings) {
+            CameraUtils.showPermissionAlert(permissionResult.message, true);
+          } else {
+            Alert.alert('Permission Denied', permissionResult.message);
+          }
+          return;
+        }
+      }
+
+      console.log('Gallery permission granted, launching gallery...');
+
+      // Launch gallery with optimized options
+      CameraUtils.launchGalleryWithOptions(result => {
+        setGalleryLoading(false);
+
+        if (result.cancelled) {
+          console.log('Gallery cancelled by user');
+          return;
+        }
+
+        if (!result.success) {
+          console.error('Gallery error:', result.error);
+          Alert.alert('Gallery Error', result.error);
+          return;
+        }
+
+        console.log('Image selected successfully:', result.uri);
+        setImageProcessing(true);
+
+        // Update state based on active tab
+        setTimeout(() => {
+          try {
             if (activeTab === tabs[1]) {
-              // If active tab is for the profile picture
-              dispatch(setProfilePicture({ uri: response.assets[0].uri }));
+              // If on "PROFILE PICTURE" tab, update profile picture
+              dispatch(setProfilePicture({ uri: result.uri }));
             } else {
-              // Handle photos array update
-              const firstEmptyIndex = photos.findIndex(photo => photo.image === '');
-              if (firstEmptyIndex !== -1) {
-                const updatedPhotos = photos.map((photo, index) =>
-                  index === firstEmptyIndex
-                    ? { ...photo, image: response.assets[0].uri }
-                    : photo
-                );
+              // If on "PHOTOS" tab, add to photos array
+              const emptyIndex = photos.findIndex(p => !p.image || p.image === '');
+              if (emptyIndex !== -1) {
+                const updatedPhotos = [...photos];
+                updatedPhotos[emptyIndex] = { image: result.uri };
                 dispatch(setPhotos(updatedPhotos));
+              } else if (photos.length < Total) {
+                dispatch(setPhotos([...photos, { image: result.uri }]));
               } else {
-                console.log('No empty slots available');
+                Alert.alert(
+                  'Maximum Photos',
+                  'You can only upload a maximum of 9 photos.',
+                );
               }
             }
+          } catch (stateUpdateError) {
+            console.error('Error updating state:', stateUpdateError);
+            Alert.alert(
+              'Error',
+              'Failed to save the image. Please try again.',
+            );
+          } finally {
+            setImageProcessing(false);
           }
-        }
-      );
+        }, 100);
+      });
     } catch (err) {
-      console.error('Error opening gallery:', err);
+      console.error('Error in openGallery:', err);
+      Alert.alert('Gallery Error', 'Failed to open gallery. Please try again.');
+      setGalleryLoading(false);
+      setImageProcessing(false);
     }
   };
-
-
-
-
-
-
-  // const openCamera = async () => {
-  //   try {
-  //     const firstEmptyIndex = photos.findIndex(p => p.image === '');
-  //     if (firstEmptyIndex === -1) {
-  //       console.log('No empty slots available');
-  //       return;
-  //     }
-
-  //     await launchCamera(
-  //       {
-  //         mediaType: 'photo',
-  //         includeBase64: false,
-  //         maxHeight: 1200,
-  //         maxWidth: 1200,
-  //         selectionLimit: 1, // Assuming you want to pick one image at a time
-  //       },
-  //       response => {
-  //         refBottomSheet.current.close();
-  //         console.log('Response = ', response);
-  //         if (response.didCancel) {
-  //           console.log('User cancelled image picker');
-  //         } else if (response.errorCode) {
-  //           // throw console.log('ImagePicker Error: ', response.errorCode);
-  //         } else if (response.errorMessage) {
-  //           console.log('ImagePicker Error: ', response.errorMessage);
-  //         } else {
-  //           if (activeTab === tabs[1]) {
-  //             setProfilePicture({
-  //               uri: response.assets[0].uri,
-  //             });
-  //           } else {
-  //             const newPhotos = [...photos];
-  //             if (response.assets && response.assets.length > 0) {
-  //               newPhotos[firstEmptyIndex].image = response.assets[0].uri; // Update the first empty slot with the new image
-  //               // setPhotos(newPhotos);
-  //               dispatch(setPhotos(newPhotos));
-  //             }
-  //           }
-  //         }
-  //       },
-  //     );
-  //   } catch (err) {
-  //     console.error(err);
-  //   }
-  // };
-
-  // uplload images one by one
 
   const openCamera = async () => {
     try {
-      await launchCamera(
-        {
-          mediaType: 'photo',
-          includeBase64: false,
-          maxHeight: 1200,
-          maxWidth: 1200,
-          selectionLimit: 1, // Limit to one image at a time
-        },
-        (response) => {
-          refBottomSheet.current.close();
+      console.log('Opening camera function called');
+      setCameraLoading(true);
 
-          if (response.didCancel) {
-            console.log('User cancelled camera');
-          } else if (response.errorCode) {
-            console.log('Camera Error: ', response.errorCode);
-          } else if (response.errorMessage) {
-            console.log('Camera Error: ', response.errorMessage);
-          } else if (response.assets && response.assets.length > 0) {
+      if (Platform.OS === 'android') {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+        );
+        if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert(
+            'Permission Denied',
+            'Camera permission is required to take photos.',
+          );
+          setCameraLoading(false);
+          return;
+        }
+      } else {
+        const permissionResult = await CameraUtils.requestCameraPermission();
+        if (!permissionResult.success) {
+          setCameraLoading(false);
+          if (permissionResult.showSettings) {
+            CameraUtils.showPermissionAlert(permissionResult.message, true);
+          } else {
+            Alert.alert('Permission Denied', permissionResult.message);
+          }
+          return;
+        }
+      }
+
+      console.log('Camera permission granted, launching camera...');
+
+      // Launch camera with optimized options
+      CameraUtils.launchCameraWithOptions(result => {
+        setCameraLoading(false);
+
+        if (result.cancelled) {
+          console.log('Camera cancelled by user');
+          return;
+        }
+
+        if (!result.success) {
+          console.error('Camera error:', result.error);
+          Alert.alert('Camera Error', result.error);
+          return;
+        }
+
+        console.log('Image captured successfully:', result.uri);
+        setImageProcessing(true);
+
+        // Update state based on active tab with better error handling
+        setTimeout(() => {
+          try {
             if (activeTab === tabs[1]) {
-              // If active tab is for the profile picture
-              dispatch(setProfilePicture({ uri: response.assets[0].uri }));
-              console.log('Profile picture updated:', response.assets[0].uri);
+              // If on "PROFILE PICTURE" tab, update profile picture
+              dispatch(setProfilePicture({ uri: result.uri }));
             } else {
-              // Handle photos array update
-              const firstEmptyIndex = photos.findIndex(photo => photo.image === '');
-              if (firstEmptyIndex !== -1) {
-                const updatedPhotos = photos.map((photo, index) =>
-                  index === firstEmptyIndex
-                    ? { ...photo, image: response.assets[0].uri }
-                    : photo
-                );
+              // If on "PHOTOS" tab, add to photos array
+              const emptyIndex = photos.findIndex(p => !p.image || p.image === '');
+              if (emptyIndex !== -1) {
+                const updatedPhotos = [...photos];
+                updatedPhotos[emptyIndex] = { image: result.uri };
                 dispatch(setPhotos(updatedPhotos));
-                console.log('Photos array updated:', updatedPhotos);
+              } else if (photos.length < Total) {
+                dispatch(setPhotos([...photos, { image: result.uri }]));
               } else {
-                console.log('No empty slots available');
+                Alert.alert(
+                  'Maximum Photos',
+                  'You can only upload a maximum of 9 photos.',
+                );
               }
             }
+          } catch (stateUpdateError) {
+            console.error('Error updating state:', stateUpdateError);
+            Alert.alert(
+              'Error',
+              'Failed to save the image. Please try again.',
+            );
+          } finally {
+            setImageProcessing(false);
           }
-        }
-      );
+        }, 100);
+      });
     } catch (err) {
-      console.error('Error using camera:', err);
+      console.error('Error in openCamera:', err);
+      Alert.alert('Camera Error', 'Failed to open camera. Please try again.');
+      setCameraLoading(false);
+      setImageProcessing(false);
     }
   };
 
+  // uplload images one by one
   const uploadImage = async (item) => {
     setLoading(true);
     const formData = new FormData();
@@ -256,10 +267,12 @@ function AddYourPhotos({ navigation }) {
       type: 'image/jpeg',
       name: 'profilePicture.jpg',
     });
-    formData.append('upload_preset', 'uheajywb');
 
+    // Comment out Cloudinary upload code
+    /*
+    formData.append('upload_preset', 'mwawkvfq');
     try {
-      const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/image/upload', {
+      const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dfhk5givd/image/upload', {
         method: 'POST',
         body: formData,
         headers: {
@@ -278,17 +291,44 @@ function AddYourPhotos({ navigation }) {
       console.error('Upload error:', error);
       return ''; // Return empty string or handle error as needed
     }
+    */
+
+    // New upload implementation using custom backend API
+    try {
+      const uploadResponse = await fetch('https://backend.fatedating.com/upload-file', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.error) {
+        console.log('Image uploaded successfully:', uploadResult.msg);
+        return uploadResult.data.fullUrl; // Return the URL of the uploaded image
+      } else {
+        console.error('Upload error:', uploadResult);
+        return ''; // Return empty string or handle error as needed
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      return ''; // Return empty string or handle error as needed
+    }
   };
 
-
   const uploadImg = async () => {
-    const uploadPromises = photos.map(async item => {
-      if (item.image === '') {
+    // Get only non-empty photos for upload
+    const nonEmptyPhotos = getNonEmptyPhotos();
+
+    const uploadPromises = nonEmptyPhotos.map(async item => {
+      if (!item || item.image === '') {
         return '';
       } else {
         return await uploadImage(item);
       }
     });
+
     const uploadedImages = await Promise.all(uploadPromises);
     return uploadedImages.filter(url => url !== ''); // Filter out any failed uploads or empty strings
   };
@@ -301,9 +341,10 @@ function AddYourPhotos({ navigation }) {
       type: 'image/jpeg',
       name: 'profilePicture.jpg',
     });
-    formData.append('upload_preset', 'mwawkvfq');
-    // formData.append('upload_preset', 'uheajywb');
 
+    // Comment out Cloudinary upload code
+    /*
+    formData.append('upload_preset', 'mwawkvfq');
     try {
       // const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dl91sgjy1/image/upload', {
       const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/dfhk5givd/image/upload', {
@@ -319,6 +360,30 @@ function AddYourPhotos({ navigation }) {
       console.error('Upload error:', error);
       return ''; // Return empty string or handle error as needed
     }
+    */
+
+    // New upload implementation using custom backend API
+    try {
+      const uploadResponse = await fetch('https://backend.fatedating.com/upload-file', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.error) {
+        console.log('Profile image uploaded successfully:', uploadResult.msg);
+        return uploadResult.data.fullUrl; // Return the URL of the uploaded image
+      } else {
+        console.error('Profile image upload error:', uploadResult);
+        return ''; // Return empty string or handle error as needed
+      }
+    } catch (error) {
+      console.error('Profile image upload error:', error);
+      return ''; // Return empty string or handle error as needed
+    }
   };
 
   const uploadData = async () => {
@@ -328,12 +393,12 @@ function AddYourPhotos({ navigation }) {
       // Upload new images
       const newImageUrls = await uploadImg();
       console.log('Uploaded Images:', newImageUrls);
-      setPhotos(prevPhotos => [...prevPhotos, ...newImageUrls.map(url => ({ image: url }))]);
+      dispatch(setPhotos([...photos, ...newImageUrls.map(url => ({ image: url }))]));
 
       // Upload profile image
       const profileImageUrl = await uploadProfileImage();
       console.log('Uploaded Profile Image:', profileImageUrl);
-      setProfilePicture({ uri: profileImageUrl });
+      dispatch(setProfilePicture({ uri: profileImageUrl }));
 
       // Fetch the existing basic_info from AsyncStorage
       const data1 = await AsyncStorage.getItem('basic_info');
@@ -388,34 +453,287 @@ function AddYourPhotos({ navigation }) {
   const requestCameraPermission = async () => {
     try {
       if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
+        const cameraGranted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.CAMERA,
           {
             title: "Camera Permission",
-            message: "This app requires access to your camera.",
+            message: "This app requires access to your camera to take photos.",
             buttonNeutral: "Ask Me Later",
             buttonNegative: "Cancel",
             buttonPositive: "OK"
           }
         );
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log("You can use the camera");
+
+        // For Android 13+ (API level 33), we also need media permissions
+        if (Platform.Version >= 33) {
+          await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+            PermissionsAndroid.PERMISSIONS.CAMERA
+          ]);
+        }
+
+        if (cameraGranted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log("Camera permission granted");
+          return true;
         } else {
           console.log("Camera permission denied");
+          return false;
         }
       }
+      return true;
     } catch (err) {
-      console.warn(err);
+      console.warn('Permission request error:', err);
+      return false;
+    }
+  };
+
+  const checkCameraPermission = async () => {
+    try {
+      if (Platform.OS === 'ios') {
+        const result = await request(PERMISSIONS.IOS.CAMERA);
+        console.log('iOS Camera permission status:', result);
+        return result === RESULTS.GRANTED;
+      }
+
+      if (Platform.OS === 'android') {
+        // Check if permission is already granted
+        const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA);
+
+        if (hasPermission) {
+          return true;
+        }
+
+        // Request permission if not granted
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: "Camera Permission",
+            message: "This app requires access to your camera to take photos.",
+            buttonNeutral: "Ask Me Later",
+            buttonNegative: "Cancel",
+            buttonPositive: "OK"
+          }
+        );
+
+        console.log('Android Camera permission status:', result);
+        return result === PermissionsAndroid.RESULTS.GRANTED;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error checking camera permission:', error);
+      return false;
+    }
+  };
+
+  const checkGalleryPermission = async () => {
+    try {
+      if (Platform.OS === 'ios') {
+        // On iOS 14+, we need to use new photo library permissions
+        const result = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+        console.log('iOS Photo Library permission status:', result);
+
+        // On iOS, LIMITED access is also acceptable
+        if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) {
+          return true;
+        }
+
+        // If permission is denied, show a helpful message
+        if (result === RESULTS.DENIED || result === RESULTS.BLOCKED) {
+          console.log('Photo library permission denied on iOS');
+          setTimeout(() => {
+            Alert.alert(
+              'Photo Access Required',
+              'Please allow access to your photo library in your device settings to upload photos.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openURL('app-settings:') }
+              ]
+            );
+          }, 500);
+          return false;
+        }
+
+        return false;
+      }
+
+      if (Platform.OS === 'android') {
+        // For Android 13+ (API level 33), use READ_MEDIA_IMAGES
+        if (Platform.Version >= 33) {
+          const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
+          if (hasPermission) {
+            return true;
+          }
+
+          const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
+          return result === PermissionsAndroid.RESULTS.GRANTED;
+        } else {
+          // For older Android versions, use READ_EXTERNAL_STORAGE
+          const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+          if (hasPermission) {
+            return true;
+          }
+
+          const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+          return result === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Error checking gallery permission:', error);
+      return false;
+    }
+  };
+
+  // Create a function to get non-empty photos
+  const getNonEmptyPhotos = () => {
+    return photos.filter(photo => photo && photo.image !== '');
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      console.log('Requesting camera permission...');
+
+      // Close the bottom sheet first
+      if (refBottomSheet.current) {
+        refBottomSheet.current.close();
+      }
+
+      // Check camera permissions
+      if (Platform.OS === 'ios') {
+        const result = await request(PERMISSIONS.IOS.CAMERA);
+        console.log('iOS Camera permission status:', result);
+
+        if (result !== RESULTS.GRANTED) {
+          Alert.alert(
+            'Camera Permission Required',
+            'Please allow camera access in your device settings to take photos.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openURL('app-settings:') }
+            ]
+          );
+          return;
+        }
+      } else {
+        const granted = await checkCameraPermission();
+        if (!granted) {
+          console.log('Camera permission not granted, cannot open camera');
+          Alert.alert(
+            'Permission Required',
+            'Camera access is required to take a photo. Please enable it in settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => openSettings() }
+            ]
+          );
+          return;
+        }
+      }
+
+      console.log('Camera permission granted, opening camera...');
+
+      // Add a longer delay to ensure bottom sheet is fully closed and permissions are processed
+      setTimeout(() => {
+        openCamera();
+      }, 500);
+
+    } catch (error) {
+      console.error('Error in handleTakePhoto:', error);
+      Alert.alert('Error', 'Failed to access camera. Please try again.');
+    }
+  };
+
+  const handleChoosePhoto = async () => {
+    try {
+      console.log('Handling photo selection...');
+
+      // Close the bottom sheet first
+      if (refBottomSheet.current) {
+        refBottomSheet.current.close();
+      }
+
+      // Check permissions on iOS
+      if (Platform.OS === 'ios') {
+        const result = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+        console.log('iOS Photo Library permission status:', result);
+
+        if (result !== RESULTS.GRANTED && result !== RESULTS.LIMITED) {
+          Alert.alert(
+            'Permission Required',
+            'Photo library access is required to choose photos. Please enable it in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openURL('app-settings:') }
+            ]
+          );
+          return;
+        }
+      }
+
+      // For Android, check permissions if needed (for older versions)
+      if (Platform.OS === 'android' && Platform.Version < 33) {
+        const granted = await checkGalleryPermission();
+        if (!granted) {
+          console.log('Gallery permission not granted');
+          Alert.alert(
+            'Permission Required',
+            'Photo library access is required to choose a photo. Please enable it in settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => openSettings() }
+            ]
+          );
+          return;
+        }
+      }
+
+      console.log('Opening gallery...');
+
+      // Add a longer delay to ensure bottom sheet is fully closed and permissions are processed
+      setTimeout(() => {
+        openGallery();
+      }, 500);
+
+    } catch (error) {
+      console.error('Error in handleChoosePhoto:', error);
+      Alert.alert('Error', 'Failed to access photo library. Please try again.');
     }
   };
 
   useEffect(() => {
     requestCameraPermission();
+
+    // Cleanup function to reset loading states
+    return () => {
+      setGalleryLoading(false);
+      setCameraLoading(false);
+      setImageProcessing(false);
+    };
   }, []);
+
+  // Optimize photos array to move empty slots to the end
+  useEffect(() => {
+    if (Array.isArray(photos) && photos.length > 0) {
+      // Check if we have both empty and non-empty photos
+      const nonEmptyPhotos = photos.filter(photo => photo && photo.image !== '');
+      const emptyPhotos = photos.filter(photo => !photo || photo.image === '');
+
+      // If we have the correct number of items but in the wrong order,
+      // reorganize to have all non-empty photos first, followed by empty ones
+      if (nonEmptyPhotos.length > 0 && emptyPhotos.length > 0) {
+        const reorganizedPhotos = [...nonEmptyPhotos, ...emptyPhotos];
+        // Only update if the order has changed
+        if (JSON.stringify(reorganizedPhotos) !== JSON.stringify(photos)) {
+          console.log('Photos array reorganized to optimize empty slots');
+          dispatch(setPhotos(reorganizedPhotos));
+        }
+      }
+    }
+  }, [photos]);
   return (
     <GradientBackground>
       <TopBar />
-      <BottomSheet height={responsiveHeight(25)} ref={refBottomSheet}>
+      <BottomSheet height={responsiveHeight(40)} ref={refBottomSheet}>
         <View
           style={{
             flexDirection: 'row',
@@ -438,8 +756,13 @@ function AddYourPhotos({ navigation }) {
         </View>
         <TouchableOpacity
           onPress={() => {
-            openCamera();
-            // refBottomSheet.current.close();
+            // First close the bottom sheet
+            refBottomSheet.current.close();
+
+            // Then call handleTakePhoto after a delay
+            setTimeout(() => {
+              handleTakePhoto();
+            }, 300);
           }}
           style={{
             borderBottomWidth: 1,
@@ -448,8 +771,14 @@ function AddYourPhotos({ navigation }) {
             padding: responsiveHeight(2),
             alignContent: 'center',
             alignItems: 'center',
-          }}>
-          <Camera color={COLORS.secondary2} size={25} />
+            opacity: cameraLoading ? 0.6 : 1,
+          }}
+          disabled={cameraLoading}>
+          {cameraLoading ? (
+            <ActivityIndicator size="small" color={COLORS.secondary2} />
+          ) : (
+            <Camera color={COLORS.secondary2} size={25} />
+          )}
 
           <Text
             style={{
@@ -458,7 +787,7 @@ function AddYourPhotos({ navigation }) {
               marginLeft: responsiveWidth(5),
               fontFamily: fonts.PoppinsRegular,
             }}>
-            Take a Photo
+            {cameraLoading ? 'Opening Camera...' : 'Take a Photo'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -467,11 +796,23 @@ function AddYourPhotos({ navigation }) {
             padding: responsiveHeight(2),
             alignContent: 'center',
             alignItems: 'center',
+            opacity: galleryLoading ? 0.6 : 1,
           }}
           onPress={() => {
-            openGallery();
-          }}>
-          <ImageIcon color={COLORS.secondary2} size={25} />
+            // First close the bottom sheet
+            refBottomSheet.current.close();
+
+            // Then call handleChoosePhoto after a delay
+            setTimeout(() => {
+              handleChoosePhoto();
+            }, 300);
+          }}
+          disabled={galleryLoading}>
+          {galleryLoading ? (
+            <ActivityIndicator size="small" color={COLORS.secondary2} />
+          ) : (
+            <ImageIcon color={COLORS.secondary2} size={25} />
+          )}
           <Text
             style={{
               fontSize: responsiveFontSize(2),
@@ -479,11 +820,11 @@ function AddYourPhotos({ navigation }) {
               marginLeft: responsiveWidth(5),
               fontFamily: fonts.PoppinsRegular,
             }}>
-            Choose a photo
+            {galleryLoading ? 'Opening Gallery...' : 'Choose a photo'}
           </Text>
         </TouchableOpacity>
       </BottomSheet>
-      <BottomSheet height={responsiveHeight(60)} ref={refBottomSheet2}>
+      <BottomSheet height={responsiveHeight(70)} ref={refBottomSheet2}>
         <Text
           style={{
             fontSize: responsiveFontSize(2.5),
@@ -493,47 +834,57 @@ function AddYourPhotos({ navigation }) {
           Choose Profile Picture
         </Text>
         <FlatList
-          data={photos}
+          data={getNonEmptyPhotos()}
           numColumns={2}
+          ListEmptyComponent={() => (
+            <View style={{
+              width: responsiveWidth(90),
+              alignSelf: 'center',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginVertical: responsiveHeight(10),
+            }}>
+              <Text style={{
+                color: COLORS.white,
+                fontSize: responsiveFontSize(2),
+                textAlign: 'center',
+                fontFamily: fonts.PoppinsRegular,
+              }}>
+                No photos available. Please upload photos first.
+              </Text>
+            </View>
+          )}
           renderItem={({ item, index }) => {
-            if (item.image !== '') {
-              return (
-                <TouchableOpacity
-                  onPress={() => {
-                    // setProfilePicture({ uri: item.image });
-                    // refBottomSheet2.current.close();
-                    dispatch(setProfilePicture({ uri: item.image })); // Update Redux state
-                    refBottomSheet2.current.close();
-                  }}
+            return (
+              <TouchableOpacity
+                onPress={() => {
+                  dispatch(setProfilePicture({ uri: item.image })); // Update Redux state
+                  refBottomSheet2.current.close();
+                }}
+                style={{
+                  width: '45%',
+                  height: responsiveHeight(13),
+                  backgroundColor: COLORS.white,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: responsiveWidth(5),
+                  borderWidth: 2,
+                  borderColor: COLORS.white,
+                  marginTop: responsiveHeight(1.5),
+                  marginHorizontal: responsiveWidth(1),
+                  overflow: 'hidden',
+                }}>
+                <Image
+                  source={{ uri: item?.image }}
                   style={{
-                    width: '45%',
-                    height: responsiveHeight(13),
-                    backgroundColor: COLORS.white,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: responsiveWidth(5),
-                    // borderWidth: 1,
-                    borderColor: COLORS.primary,
-                    marginTop: responsiveHeight(1.5),
-                    marginHorizontal: responsiveWidth(1),
-                    overflow: 'hidden',
-                  }}>
-                  <Image
-                    source={{ uri: item?.image }}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      borderRadius: responsiveWidth(5),
-                      // backgroundColor: 'red',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      resizeMode: 'cover',
-                      overflow: 'hidden',
-                    }}
-                  />
-                </TouchableOpacity>
-              );
-            }
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: responsiveWidth(4),
+                  }}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            );
           }}
         />
         <PrimaryButton
@@ -650,7 +1001,7 @@ function AddYourPhotos({ navigation }) {
                 marginTop: responsiveHeight(0),
                 width: responsiveWidth(90),
               }}
-              title={activeTab === 'PHOTOS' ? 'Add your best Photos' : 'Profile Photo'}
+              title={activeTab === 'PHOTOS' ? 'Add your best Photo' : 'Profile Photo'}
               subtitle={
                 activeTab === 'PHOTOS'
                   ? `Let everyone see that beautiful${'\n'} face of yours`
@@ -664,18 +1015,26 @@ function AddYourPhotos({ navigation }) {
                 <DraggableGrid
                   numColumns={3}
                   onDragRelease={data => {
-                    console.log('data', data);
-                    // setPhotos(data);
-                    dispatch(setPhotos(data));
+                    try {
+                      console.log('data', data);
+                      if (Array.isArray(data)) {
+                        dispatch(setPhotos(data));
+                      } else {
+                        console.error('Invalid drag data:', data);
+                      }
+                    } catch (error) {
+                      console.error('Error in onDragRelease:', error);
+                    }
                   }}
                   renderItem={(item, index) => {
                     if (item?.image === '') {
                       return (
                         <TouchableOpacity
                           onPress={() => {
-                            // openGallery();
-                            refBottomSheet.current.open();
-                            // openCamera();
+                            // Ensure we have a clean state before trying to open the bottom sheet
+                            setTimeout(() => {
+                              refBottomSheet.current.open();
+                            }, 100);
                           }}
                           style={{
                             width: responsiveWidth(28),
@@ -696,43 +1055,55 @@ function AddYourPhotos({ navigation }) {
                       );
                     } else {
                       return (
-                        <ImageBackground
+                        <View
                           style={{
                             width: responsiveWidth(28),
                             height: responsiveHeight(13),
-                            borderRadius: 0,
-                            // backgroundColor: 'red',
-                            backgroundColor: 'rgba(0, 0, 0, 0.1)', // Add a default background color
-
+                            backgroundColor: COLORS.white,
+                            borderRadius: responsiveWidth(2),
+                            borderWidth: 2,
+                            borderColor: COLORS.white,
                             justifyContent: 'center',
                             alignItems: 'center',
                             marginTop: responsiveHeight(2),
+                            overflow: 'hidden',
                           }}
-                          imageStyle={{
-                            borderRadius: responsiveWidth(2),
-                          }}
-                          source={{ uri: item?.image }}
-                          key={item.key}>
+                        >
+                          <Image
+                            source={{ uri: item?.image }}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: responsiveWidth(1),
+                            }}
+                            resizeMode="contain"
+                          />
                           <TouchableOpacity
                             onPress={() => {
-                              // setPhotos(
-                              //   photos.map((item, i) => {
-                              //     if (index === i) {
-                              //       return { ...item, image: '' };
-                              //     }
-                              //     return item;
-                              //   }),
-                              // );
-                              const updatedPhotos = photos.map((photo, i) =>
-                                i === index ? { ...photo, image: '' } : photo
-                              );
-                              dispatch(setPhotos(updatedPhotos)); // Dispatch updated array to Redux
-                              console.log(`Deleted image at index ${index}`);
+                              try {
+                                // Add safety check for photos array
+                                if (Array.isArray(photos) && index >= 0 && index < photos.length) {
+                                  // Instead of just setting the image to empty string, 
+                                  // we'll move the empty space to the end so there are no "holes" in the array
+                                  const deletingItem = photos[index];
+                                  const remainingItems = photos.filter((_, i) => i !== index);
+
+                                  // Add the empty space at the end
+                                  const updatedPhotos = [...remainingItems, { ...deletingItem, image: '' }];
+
+                                  dispatch(setPhotos(updatedPhotos));
+                                  console.log(`Deleted image at index ${index}`);
+                                } else {
+                                  console.error('Invalid photos array or index:', { photos, index });
+                                }
+                              } catch (error) {
+                                console.error('Error deleting image:', error);
+                              }
                             }}
                             style={{
                               position: 'absolute',
-                              top: -5,
-                              right: -5,
+                              top: 5,
+                              right: 5,
                               paddingHorizontal: 7,
                               paddingVertical: 5,
                               backgroundColor: COLORS.red,
@@ -743,7 +1114,7 @@ function AddYourPhotos({ navigation }) {
                               <Icon name="times" size={responsiveFontSize(2)} color={COLORS.white} />
                             </Text>
                           </TouchableOpacity>
-                        </ImageBackground>
+                        </View>
                       );
                     }
                   }}
@@ -777,50 +1148,64 @@ function AddYourPhotos({ navigation }) {
                   marginTop: responsiveHeight(5),
                   flex: 1,
                 }}>
-                <ImageBackground
-                  source={profilePicture?.uri != '' ? { uri: profilePicture?.uri } : Images?.profile_picture}
+                <View
                   style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    width: responsiveWidth(28),
-                    flexDirection: 'row',
-                    height: responsiveHeight(13),
+                    width: responsiveWidth(40),
+                    height: responsiveHeight(20),
                     alignContent: 'center',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderRadius: responsiveWidth(50),
-                    borderWidth: profilePicture?.uri != '' ? 0 : responsiveWidth(0.2),
+                    borderRadius: responsiveWidth(5),
+                    borderWidth: profilePicture?.uri && profilePicture.uri !== '' ? 2 : responsiveWidth(0.2),
                     borderColor: COLORS.white,
                     alignSelf: 'center',
-                    borderStyle: 'dashed',
-
+                    borderStyle: profilePicture?.uri && profilePicture.uri !== '' ? 'solid' : 'dashed',
+                    overflow: 'hidden',
                   }}
-                  imageStyle={{
-                    borderRadius: responsiveWidth(50),
-                    alignItems: 'center',
-                    alignSelf: 'center',
-                    display: profilePicture?.uri != '' ? 'flex' : 'none',
-                  }}>
-                  <Icon
-                    style={{
-                      display: profilePicture?.uri != '' ? 'none' : 'flex',
-                    }}
-                    name="camera"
-                    size={responsiveFontSize(4)}
-                    color={COLORS.white}
-                  />
+                >
+                  {profilePicture?.uri && profilePicture.uri !== '' ? (
+                    <Image
+                      source={{ uri: profilePicture.uri }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: responsiveWidth(3),
+                        backgroundColor: 'white'
+                      }}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => {
+                        refBottomSheet.current.open();
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                      <Icon
+                        name="camera"
+                        size={responsiveFontSize(4)}
+                        color={COLORS.white}
+                      />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     onPress={() => {
                       dispatch(setProfilePicture({ uri: '' }));
                     }}
                     style={{
                       position: 'absolute',
-                      top: responsiveWidth(0),
-                      right: responsiveWidth(0),
+                      top: 10,
+                      right: 10,
                       backgroundColor: COLORS.red,
                       paddingVertical: responsiveHeight(.7),
                       paddingHorizontal: responsiveHeight(1),
                       borderRadius: responsiveWidth(5),
-                      display: profilePicture?.uri == '' ? 'none' : 'flex',
+                      display: profilePicture?.uri && profilePicture.uri !== '' ? 'flex' : 'none',
                     }}
                   >
                     <Icon
@@ -832,15 +1217,27 @@ function AddYourPhotos({ navigation }) {
                       color={COLORS.white}
                     />
                   </TouchableOpacity>
-                </ImageBackground>
+                </View>
                 <TouchableOpacity
                   onPress={() => {
-                    refBottomSheet2.current.open();
+                    // Check if there are any non-empty photos before opening the bottom sheet
+                    const nonEmptyPhotos = getNonEmptyPhotos();
+                    if (nonEmptyPhotos.length > 0) {
+                      refBottomSheet2.current.open();
+                    } else {
+                      // Alert the user that they need to add photos first
+                      Alert.alert(
+                        "No Photos Available",
+                        "Please add some photos first before selecting a profile picture.",
+                        [{ text: "OK" }]
+                      );
+                    }
                   }}
                   style={{
                     borderColor: COLORS.primary,
                     alignSelf: 'center',
                     padding: responsiveHeight(2),
+                    opacity: getNonEmptyPhotos().length > 0 ? 1 : 0.6,
                   }}>
                   <Text
                     style={{
@@ -902,7 +1299,7 @@ function AddYourPhotos({ navigation }) {
           </ScrollView>
 
           <PrimaryButton
-            loading={loading}
+            loading={loading || imageProcessing}
             title={
               activeTab === tabs[0]
                 ? 'Next'
@@ -911,19 +1308,31 @@ function AddYourPhotos({ navigation }) {
                   : 'Continue'
             }
             onPress={() => {
+              if (imageProcessing || galleryLoading || cameraLoading) {
+                return; // Prevent action while processing
+              }
+
               if (activeTab === tabs[0]) {
-                const hasImages = photos.some(p => p.image !== ''); // Check for images
-                hasImages ? SetActiveTab(tabs[1]) : setAlert_one_image(true);
+                // Add safety check for photos array and verify we have at least one photo
+                const nonEmptyPhotos = getNonEmptyPhotos();
+                if (nonEmptyPhotos.length > 0) {
+                  SetActiveTab(tabs[1]);
+                } else {
+                  setAlert_one_image(true);
+                }
               } else {
-                profilePicture?.uri === ''
-                  ? refBottomSheet.current.open()
-                  : navigation.navigate('ProfilePreference');
+                if (profilePicture?.uri === '') {
+                  refBottomSheet.current.open();
+                } else {
+                  navigation.navigate('ProfilePreference');
+                }
               }
             }}
             style={{
               alignSelf: 'center',
               width: responsiveWidth(90),
-              marginVertical: Platform.OS === 'ios' ? responsiveHeight(2) : responsiveHeight(0),
+              marginVertical: Platform.OS === 'ios' ? responsiveHeight(2) : responsiveHeight(2),
+              opacity: (imageProcessing || galleryLoading || cameraLoading) ? 0.7 : 1,
             }}
             backgroundColor={COLORS.white}
             textColor={COLORS.primary}

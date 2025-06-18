@@ -1,7 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import RBSheet from 'react-native-raw-bottom-sheet';
-import LinearGradient from 'react-native-linear-gradient';
 import COLORS from '../../consts/colors';
 import { BlurView } from '@react-native-community/blur';
 const BottomSheet = React.forwardRef((props, ref) => {
@@ -18,7 +17,16 @@ const BottomSheet = React.forwardRef((props, ref) => {
           borderTopRightRadius: 20,
           borderTopLeftRadius: 20,
         },
-      }}>
+      }}
+      onClose={() => {
+        if (props.onClose) {
+          props.onClose();
+        }
+      }}
+      dragFromTopOnly={true}
+      closeOnDragDown={true}
+      closeOnPressMask={true}
+    >
       {
         props.backgroundColor ? (
           <BlurView

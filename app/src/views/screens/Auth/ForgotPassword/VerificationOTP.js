@@ -1,6 +1,5 @@
 import React, {
   useEffect, useState,
-  useRef,
 } from 'react';
 import {
   View,
@@ -8,31 +7,22 @@ import {
   SafeAreaView,
   Animated,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  TextInput,
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getUserDetail,
-  storeUserDetail,
 } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import {
   responsiveHeight,
   responsiveWidth,
   responsiveFontSize,
 } from 'react-native-responsive-dimensions';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import TopBar from '../../../../components/TopBar/TopBar';
 import {

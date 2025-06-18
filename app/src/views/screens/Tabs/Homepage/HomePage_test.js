@@ -9,59 +9,55 @@ import {
   Text,
   SafeAreaView,
   FlatList,
-  Animated,
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   ImageBackground,
   Platform,
   RefreshControl,
-  Alert
+  Alert,
+  TouchableHighlight,
+  Dimensions
 } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import { getUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import LinearGradient from 'react-native-linear-gradient';
-import AppTextLogo from '../../../../components/AppLogo/AppTextLogo';
 import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
 import {
   getMatchUsers,
-  getUsersforJokerCard,
   disQualifyUser,
   getUserJokerCard,
   assignJokerToUser,
-  removeUserFromFateRullet
+  addToken
 } from '../../../../Services/Auth/SignupService';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import { BlurView } from '@react-native-community/blur';
 import { useIsFocused } from '@react-navigation/native';
 import {
-  House,
-  BellRinging,
-  BellSimple,
-  MagnifyingGlass
+  House
 } from 'phosphor-react-native';
 import FastImage from 'react-native-fast-image';
-
+import Tooltip from 'react-native-walkthrough-tooltip';
 
 
 
 function HomePage({ route, navigation }) {
   const { isUpdated } = route?.params || false;
-
-
   console.log('isUpdated', isUpdated);
+
+  // Device detection for responsive design
+  const { width, height } = Dimensions.get('window');
+  const isTablet = width >= 768; // Standard tablet detection threshold
+
+  // tooltip
+  const [toolTipVisible, setToolTipVisible] = useState(false);
 
   const isFocused = useIsFocused();
   const [currentUser, setCurrentUser] = useState(null);
@@ -137,12 +133,15 @@ function HomePage({ route, navigation }) {
     const userDetail = await getUserDetail();
     const data = {
       user_id: userDetail?.data?.id,
-      prefered_gender: userDetail.data.prefered_gender,
+      prefered_gender: userDetail?.data?.prefered_gender,
     };
 
     setCurrentUser(userDetail?.data);
+    console.log('userDetail', data);
 
     const response = await getMatchUsers(data);
+
+    console.log('getMatchUsers', response);
 
     const cardNames = ['fate', 'K', 'J', '10', 'A'];
     const cardTypes = ['FATE', 'NORMAL', 'NORMAL', 'NORMAL', 'ANONYMOUS'];
@@ -190,13 +189,15 @@ function HomePage({ route, navigation }) {
 
     newMatchList.push(jokerEntry);
 
+    console.log('newMatchList', newMatchList);
+
     setFateList(newMatchList);
 
 
     await callUserJokerCard(false);
-
-
     setLoading(false);
+
+    setToolTipVisible(true);
   };
 
 
@@ -262,6 +263,14 @@ function HomePage({ route, navigation }) {
     console.log('disQualifyUser', response);
 
     if (response?.error == false) {
+      // remove 30 tokens
+      //
+      const data = {
+        user_id: userDetail?.data?.id,
+        new_tokens: -30
+      }
+      const res = await addToken(data);
+      console.log('addToken', res);
       await storeDisqualifyTimestamp(); // Store timestamp of this disqualification
       await getMatchUsersList();
     }
@@ -281,7 +290,7 @@ function HomePage({ route, navigation }) {
       };
       const response = await getUserJokerCard(data);
 
-      // console.log('getUserJokerCard', JSON.stringify(response, null, 2));
+      console.log('getUserJokerCard', JSON.stringify(response, null, 2));
 
       from_home ? setLoading(false) : null;
       if (response?.isSystemAssigned === 'TRUE' && (response?.alreadyAssigned == true
@@ -354,6 +363,13 @@ function HomePage({ route, navigation }) {
     };
     const response = await assignJokerToUser(data);
     console.log('assignJokerToUser', response)
+    // remove 60 tokens
+    const data1 = {
+      user_id: userDetail?.data?.id,
+      new_tokens: -60
+    }
+    const res = await addToken(data1);
+    console.log('addToken', res);
     setLoading(false);
     if (response.error === false) {
 
@@ -524,16 +540,15 @@ function HomePage({ route, navigation }) {
             Platform.OS === 'ios' ?
               responsiveHeight(60) : responsiveHeight(80)}
           ref={refRBSheet_reasons}
-          backgroundColor={
-            Platform.OS === 'ios' ?
-              'transparent' :
-              'background: rgba(255, 255, 255, 0.16)'}
+          backgroundColor={'red'}
         >
-          <View
+          <GradientBackground
             style={{
               marginTop: responsiveHeight(1),
               marginHorizontal: responsiveWidth(5),
               flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
             }}>
 
 
@@ -542,16 +557,41 @@ function HomePage({ route, navigation }) {
             <FlatList
               ListHeaderComponent={() => {
                 return (
-                  <Text
+                  <View
                     style={{
-                      color: COLORS.white,
-                      fontSize: responsiveFontSize(2.5),
-                      fontFamily: fonts.PoppinsMedium,
-                      textAlign: 'center',
-                      paddingVertical: responsiveHeight(2),
-                    }}>
-                    Select a reason for Disqualification
-                  </Text>
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      // backgroundColor: 'red',
+                      width: responsiveWidth(90),
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: COLORS.white,
+                        fontSize: responsiveFontSize(2),
+                        fontFamily: fonts.PoppinsMedium,
+                        paddingVertical: responsiveHeight(2),
+                        width: responsiveWidth(70),
+                      }}>
+                      Select a reason for Disqualifications
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        refRBSheet_reasons.current.close();
+                      }}
+                      style={{
+                        paddingVertical: 5,
+                        paddingHorizontal: 8,
+                        backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                        borderRadius: 50,
+                        // width: 40,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Icon name="times" size={18} color={COLORS.white} />
+                    </TouchableOpacity>
+                  </View>
                 )
               }}
 
@@ -599,7 +639,7 @@ function HomePage({ route, navigation }) {
               }}>
 
             </View>
-          </View>
+          </GradientBackground>
         </BottomSheet>
         <BottomSheet
           height={responsiveHeight(20)}
@@ -626,75 +666,69 @@ function HomePage({ route, navigation }) {
         </BottomSheet>
         <RBSheet
           ref={refRBSheet_jokerList}
-          height={responsiveHeight(60)}
+          height={responsiveHeight(70)}
           openDuration={250}
           customStyles={{
             container: {
               backgroundColor: 'transparent',
               width: responsiveWidth(90),
               borderRadius: 20,
-              padding: 20,
+              // padding: 20,
               marginBottom: responsiveHeight(15),
               alignSelf: 'center',
               height: responsiveHeight(70),
+              borderRadius: 20,
+              borderWidth: 1,
+              overflow: 'hidden',
+              borderColor: COLORS.light,
             },
           }}
           animationType={'fade'}
         >
-          <BlurView
-            style={[StyleSheet.absoluteFill, {
-              borderRadius: 20,
-              padding: 20,
-              marginBottom: responsiveHeight(20),
+          <GradientBackground
+            gradientStyle={{
+              width: responsiveWidth(90),
               alignSelf: 'center',
-              height: responsiveHeight(70),
-
-            }]}
-            blurType="light"
-            blurAmount={10}
-            reducedTransparencyFallbackColor="white"
+              height: '100%',
+            }}
           >
-
-
-            <FlatList
-              ListHeaderComponent={() => {
-                return (<View
-                  style={{
-                    flexDirection: 'row',
-                    width: responsiveWidth(80),
-                    zIndex: 999,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: COLORS.white,
-                      fontSize: responsiveFontSize(2.5),
-                      fontWeight: '600',
-                      width: responsiveWidth(100),
-                      // fontFamily: fonts.JostMedium,
-                    }}
-                  >
-                    Select a profile to {'\n'}send a Joker Card
-                  </Text>
-                  <TouchableOpacity
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                      borderRadius: 50,
-                      width: 40,
-                      alignItems: 'center',
-                      position: 'absolute',
-                      right: 0,
-                    }}
-                    onPress={() => {
-                      refRBSheet_jokerList.current.close();
-                    }}
-                  >
-                    <Icon name="times" size={20} color={COLORS.white} />
-                  </TouchableOpacity>
-                </View>)
+            <View
+              style={{
+                flexDirection: 'row',
+                width: responsiveWidth(80),
+                zIndex: 999,
+                marginVertical: responsiveHeight(1),
+                alignItems: 'center',
               }}
+            >
+              <Text
+                style={{
+                  color: COLORS.white,
+                  fontSize: responsiveFontSize(2),
+                  fontWeight: '600',
+                  width: responsiveWidth(100),
+                  // fontFamily: fonts.JostMedium,
+                }}
+              >
+                Select a profile to {'\n'}send a Joker Card
+              </Text>
+              <TouchableOpacity
+                style={{
+                  alignItems: 'center',
+                  position: 'absolute',
+                  right: 0,
+                }}
+                onPress={() => {
+                  refRBSheet_jokerList.current.close();
+                }}
+              >
+                <Icon name="times" size={20} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              // ListHeaderComponent={() => {
+              //   return ()
+              // }}
               showsVerticalScrollIndicator={true}
               data={jokerSuggerstion}
               showsHorizontalScrollIndicator={false}
@@ -704,10 +738,8 @@ function HomePage({ route, navigation }) {
                     style={{
                       alignItems: 'center',
                       justifyContent: 'flex-start',
-                      marginHorizontal: responsiveWidth(2),
                       flexDirection: 'row',
-                      paddingVertical: responsiveHeight(1.4),
-
+                      marginTop: responsiveHeight(1),
                     }}
                     onPress={() => {
                       console.log('item', item);
@@ -720,7 +752,7 @@ function HomePage({ route, navigation }) {
                       style={{
                         flexDirection: 'row',
                         justifyContent: 'flex-start',
-                        width: responsiveWidth(60),
+                        width: '80%',
                       }}
                     >
                       <Image
@@ -728,7 +760,8 @@ function HomePage({ route, navigation }) {
                           uri: item?.profile_image === null ? Images.app_logo : item?.profile_image,
                         }}
                         style={{
-                          width: responsiveWidth(15),
+                          width: Platform.OS === 'ios' ? responsiveWidth(15) : responsiveWidth(13),
+
                           height: responsiveHeight(7),
                           borderRadius: 100,
                           resizeMode: 'cover',
@@ -762,15 +795,15 @@ function HomePage({ route, navigation }) {
                       style={{
                         justifyContent: 'center',
                         flexDirection: 'row',
-                        width: responsiveWidth(15),
+                        width: '20%',
                       }}
                     >
 
                       <Icon name="paper-plane"
                         style={{
-                          padding: 15,
+                          padding: 10,
                           backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                          borderRadius: 25,
+                          borderRadius: 20,
                           borderWidth: 1,
                           borderColor: 'rgba(255, 255, 255, 0.06)',
                           overflow: 'hidden',
@@ -781,13 +814,13 @@ function HomePage({ route, navigation }) {
                   </TouchableOpacity>
                 );
               }}
-              keyExtractor={item => item.id}
+              keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
               style={{
-                marginTop: Platform.OS === 'ios' ? responsiveHeight(2) :
-                  responsiveHeight(3),
-                width: responsiveWidth(90),
-                paddingHorizontal: responsiveWidth(2),
-                paddingTop: responsiveHeight(2),
+                // marginTop: Platform.OS === 'ios' ? responsiveHeight(2) :
+                //   responsiveHeight(3),
+                width: '100%',
+                // paddingHorizontal: responsiveWidth(2),
+                // paddingTop: responsiveHeight(2),
 
               }}
 
@@ -800,11 +833,13 @@ function HomePage({ route, navigation }) {
                 );
               }}
             />
-          </BlurView>
-
-
-
+          </GradientBackground>
         </RBSheet>
+
+
+
+
+
         <View>
           <View
             style={{
@@ -829,41 +864,9 @@ function HomePage({ route, navigation }) {
                 weight='fill' size={24} />
               {'  '}Home
             </Text>
-            {/* <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-              }}>
 
-              <TouchableOpacity
-                style={{
-                  paddingVertical: 10,
-                  paddingHorizontal: 11,
-                  marginRight: responsiveWidth(2),
-                  backgroundColor: 'background: rgba(255, 255, 255, 0.16)',
-                  borderRadius: 50,
-                  borderWidth: 1,
-                  borderColor: 'rgba(255, 255, 255, 0.06)',
-                }}>
-                <BellRinging color={COLORS.white}
-                  weight="duotone" size={24} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  paddingVertical: 10,
-                  paddingHorizontal: 11,
 
-                  backgroundColor: 'background: rgba(255, 255, 255, 0.16)',
-                  borderRadius: 50,
-                  borderWidth: 1,
-                  borderColor: 'rgba(255, 255, 255, 0.06)',
-                }}>
-                <MagnifyingGlass color={COLORS.white}
-                  weight="duotone" size={24} />
 
-              </TouchableOpacity>
-
-            </View> */}
           </View>
           <Text
             style={{
@@ -878,16 +881,32 @@ function HomePage({ route, navigation }) {
           >
             Matches
           </Text>
+
+          {/* <Tooltip
+            contentStyle={{
+              backgroundColor: COLORS.white,
+              padding: 10,
+              borderRadius: 10,
+              width: responsiveWidth(60),
+              alignItems: 'center',
+
+            }}
+            isVisible={toolTipVisible}
+            content={
+              <Text
+                style={{
+                  color: COLORS.secondary,
+                  textAlign: 'center',
+                }}
+              >See All Your Matches Here {'\n'}Tap on any card to view profile</Text>
+            }
+            placement="top"
+            onClose={() => setToolTipVisible(false)}
+          >
+
+            <Text></Text>
+          </Tooltip> */}
         </View>
-        {/* <View
-          style={{
-            height: responsiveHeight(50),
-            alignItems: 'center',
-            justifyContent: 'center',
-            display: loading ? 'flex' : 'none',
-          }}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-        </View> */}
 
 
         <FlatList
@@ -917,7 +936,7 @@ function HomePage({ route, navigation }) {
                     if (currentUser?.subscription_type == null ||
                       currentUser?.subscription_type == 'free' ||
                       currentUser?.subscription_type == 'FREE' ||
-                      currentUser?.subscription_type == 'silvermonthly12345'
+                      currentUser?.subscription_type == 'silvermonthly12345_new'
 
 
                     ) {
@@ -935,8 +954,8 @@ function HomePage({ route, navigation }) {
                       });
                       return;
                     } else {
-                      if (currentUser?.subscription_type == 'silvermonthly12345' ||
-                        currentUser?.subscription_type == 'goldmonthly12345') {
+                      if (currentUser?.subscription_type == 'silvermonthly12345_new' ||
+                        currentUser?.subscription_type == 'goldmonthly12345_new') {
                         callUserJokerCard();
                       }
                     }
@@ -954,32 +973,25 @@ function HomePage({ route, navigation }) {
                 {/* card rendering */}
                 <ImageBackground
                   source={{
-                    uri:
-                      item.image === null ?
-                        null :
-                        item.image
+                    uri: item.image === null ? null : item.image
                   }}
                   style={{
-                    width: responsiveWidth(42),
-                    height: Platform.OS === 'ios' ? responsiveHeight(26.5) : responsiveHeight(28),
-                    marginVertical: responsiveHeight(1),
-                    marginHorizontal: responsiveWidth(2),
-                    backgroundColor: item.image === null ? "white" : 'transparent',
-                    resizeMode: item.image === null ? "contain" : 'cover',
+                    width: isTablet ? responsiveWidth(35) : responsiveWidth(42),
+                    height: isTablet ? responsiveHeight(24) : Platform.OS === 'ios' ? responsiveHeight(26.5) : responsiveHeight(28),
+                    marginVertical: isTablet ? responsiveHeight(1.5) : responsiveHeight(1),
+                    marginHorizontal: isTablet ? responsiveWidth(2.5) : responsiveWidth(2),
                     display: item.waitingForMatch != true ? 'flex' : 'none',
                     borderRadius: 5,
                     overflow: 'hidden',
                   }}
-
                   imageStyle={{
                     borderRadius: item.image === null ? 100 : 5,
-                    backgroundColor: 'transparent',
+                    backgroundColor: 'red',
                     width: item.image === null ? 50 : responsiveWidth(33),
                     alignSelf: 'center',
                     height: 'auto',
-                    resizeMode: item.image === null ? "contain" : 'cover',
+                    resizeMode: item.image === null ? "contain" : 'contain',
                     left: item.image === null ? '35%' : "10%",
-
                     zIndex: -1,
                   }}
                 >
@@ -988,8 +1000,8 @@ function HomePage({ route, navigation }) {
                     style={{
                       display: item.card_type === 'JOKER'
                         && (
-                          currentUser?.subscription_type == 'silvermonthly12345' ||
-                          currentUser?.subscription_type == 'goldmonthly12345'
+                          currentUser?.subscription_type == 'silvermonthly12345_new' ||
+                          currentUser?.subscription_type == 'goldmonthly12345_new'
                         )
                         && item?.name === ''
                         ? 'flex' : 'none',
@@ -1036,17 +1048,17 @@ function HomePage({ route, navigation }) {
                       }}
                     />
                   </BlurView>
+
                   <Image
                     source={item.card_image}
                     style={{
                       width: responsiveWidth(42),
                       height: Platform.OS === 'ios' ? responsiveHeight(26.5) : responsiveHeight(28),
-                      // marginVertical: responsiveHeight(1),
-                      // marginHorizontal: responsiveWidth(2),
                       backgroundColor: 'transparent',
-                      resizeMode: 'cover',
+                      resizeMode: 'contain',
                       display: item.card_type != 'ANONYMOUS' ? 'flex' : 'none',
-
+                      overflow: 'hidden',
+                      borderRadius: 10,
                     }}
                   />
                   <BlurView
@@ -1145,13 +1157,17 @@ function HomePage({ route, navigation }) {
                     style={{
                       position: 'absolute',
                       top: responsiveHeight(1),
-                      right: responsiveWidth(1),
+                      // right: responsiveWidth(2), // Fixed positioning
+                      // padding: 8, // Add padding for easier touch target
+                      zIndex: 999, // Ensure it's above other elements
+                      backgroundColor: 'rgba(0,0,0,0.2)', // Semi-transparent background
+                      // borderRadius: 50, // Make it circular
+                      overflow: 'hidden', // Keep the background within the circle
                       display: item.card_type === 'JOKER'
                         && (
-                          currentUser?.subscription_type == 'silvermonthly12345' ||
-                          currentUser?.subscription_type == 'goldmonthly12345'
+                          currentUser?.subscription_type == 'silvermonthly12345_new' ||
+                          currentUser?.subscription_type == 'goldmonthly12345_new'
                         )
-
                         ? 'none' : 'flex',
                     }}
                     onPress={async () => {
@@ -1174,7 +1190,7 @@ function HomePage({ route, navigation }) {
                     marginVertical: responsiveHeight(1),
                     marginHorizontal: responsiveWidth(2),
                     backgroundColor: COLORS.white,
-                    borderRadius: 5,
+                    borderRadius: 15,
                     overflow: 'hidden',
                     display: item.waitingForMatch === true ? 'flex' : 'none',
                   }}
@@ -1182,7 +1198,12 @@ function HomePage({ route, navigation }) {
                   {/* FastImage as the background */}
                   <FastImage
                     source={require('../../../../assets/waitingForatch.gif')}
-                    style={StyleSheet.absoluteFillObject} // Fills the parent container
+                    style={[StyleSheet.absoluteFillObject, {
+                      width: responsiveWidth(42),
+                      height: Platform.OS === 'ios' ? responsiveHeight(26.5) : responsiveHeight(28),
+                      borderRadius: 5,
+                      overflow: 'hidden',
+                    }]}
                     resizeMode={FastImage.resizeMode.contain}
                   />
 
@@ -1192,7 +1213,9 @@ function HomePage({ route, navigation }) {
                     style={{
                       width: responsiveWidth(42),
                       height: Platform.OS === 'ios' ? responsiveHeight(26.5) : responsiveHeight(28),
-                      resizeMode: 'cover',
+                      resizeMode: 'contain',
+                      borderRadius: 5,
+                      overflow: 'hidden',
                     }}
                   />
                   <View style={{ position: 'absolute', display: 'none' }}>

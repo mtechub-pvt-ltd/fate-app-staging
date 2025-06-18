@@ -1,41 +1,22 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   SafeAreaView,
-  FlatList,
-  Animated,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  TextInput,
-  ImageBackground,
   Platform,
 } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import { getUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import SimpleLineIcon from 'react-native-vector-icons/SimpleLineIcons';
 
-import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
-import PrimaryButton from '../../../../components/Button/PrimaryButton';
-import LinearGradient from 'react-native-linear-gradient';
-import AppTextLogo from '../../../../components/AppLogo/AppTextLogo';
-import BottomSheet from '../../../../components/BottomSheet/BottomSheet';
 import { getUserInsights } from '../../../../Services/Auth/SignupService';
-import RBSheet from 'react-native-raw-bottom-sheet';
-import { BlurView } from '@react-native-community/blur';
-import { SliderBox } from "react-native-image-slider-box";
 import { ScrollView } from 'react-native-gesture-handler';
-import { height } from '../../../../consts/Dimension';
 
 
 
@@ -325,7 +306,7 @@ function HomePage({ route, navigation }) {
                   style={{
                     color: COLORS.white,
                     fontSize: responsiveFontSize(5),
-                    fontFamily: fonts.PoppinsBlack,
+                    fontFamily: fonts.PoppinsLight,
                     marginLeft: responsiveWidth(2),
                   }}>
                   {
@@ -358,6 +339,8 @@ function HomePage({ route, navigation }) {
                     borderRadius: 10,
                     marginVertical: responsiveHeight(1),
                   }}
+                  activeOpacity={0.8}
+
                 >
                   <Text
                     style={{

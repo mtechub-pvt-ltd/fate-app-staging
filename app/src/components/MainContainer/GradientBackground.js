@@ -1,11 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import React from 'react';
 import LinearGradient from 'react-native-linear-gradient';
 import COLORS from '../../consts/colors';
 
-const GradientBackground = ({ children }) => {
+const GradientBackground = ({ children, gradientStyle }) => {
   return (
-    <LinearGradient colors={[COLORS.black, COLORS.primary]} style={styles.linearGradient}>
+    <LinearGradient colors={[COLORS.black, COLORS.primary]} style={[styles.linearGradient, gradientStyle]}>
       {children}
     </LinearGradient>
   );

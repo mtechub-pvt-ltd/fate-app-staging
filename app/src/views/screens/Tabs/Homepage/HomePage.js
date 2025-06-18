@@ -4,25 +4,20 @@ import {
   Text,
   SafeAreaView,
   FlatList,
-  Animated,
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   ImageBackground,
 } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserDetail, storeUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
+import { getUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Images from '../../../../consts/Images';
 import COLORS from '../../../../consts/colors';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import fonts from '../../../../consts/fonts';
-import Header from '../../../../components/TopBar/Header';
-import CustomInput from '../../../../components/CustomInput/CustomInput';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import LinearGradient from 'react-native-linear-gradient';
 import AppTextLogo from '../../../../components/AppLogo/AppTextLogo';
@@ -33,12 +28,10 @@ import RBSheet from 'react-native-raw-bottom-sheet';
 
 
 function HomePage({ route, navigation }) {
+
+  const { account_connected, account_type } = route.params || {};
+
   const [currentUser, setCurrentUser] = useState(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [match_list, setMatchList] = useState([]);
   const [activeDot, setActiveDot] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -175,72 +168,6 @@ function HomePage({ route, navigation }) {
       setLoading(false);
 
     }, 1000);
-    // setLoading(true);
-    // const userDetail = await getUserDetail();
-    // const data = {
-    //   // user_id: 245,
-    //   // current_user_gender: 'MALE',
-    //   user_id: userDetail?.data?.id,
-    //   current_user_gender: userDetail?.data?.gender,
-    // };
-
-    // const response = await getMatchUsers(data);
-    // console.log('match users', response);
-    // if (userDetail?.data?.gender == 'MALE') {
-    //   const newMatchList = response.matches.map((user, index) => {
-    //     const cardNames = ['fate', 'K', 'J', '10', 'A'];
-    //     const cardTypes = ['FATE', 'NORMAL', 'NORMAL', 'NORMAL', 'ANONYMOUS'];
-
-    //     return {
-    //       id: user.user_id,
-    //       image: user.profile_image,
-    //       name: user.name,
-    //       status: 'Online',
-    //       card_name: cardNames[index % cardNames.length],
-    //       card_type: cardTypes[index % cardTypes.length],
-    //     };
-    //   });
-    //   const jokerEntry = {
-    //     id: 6,
-    //     image: 'https://res.cloudinary.com/dl91sgjy1/image/upload/f_jpg/v1711394451/wkfvduatkhl1ztgqnaew.jpg',
-    //     name: 'Lia',
-    //     status: 'Online',
-    //     card_name: 'Joker',
-    //     card_type: 'JOKER',
-    //   };
-
-    //   newMatchList.push(jokerEntry);
-
-    //   setMatchList(newMatchList);
-    // } else {
-    //   const newMatchList = response.matches.map((user, index) => {
-    //     const cardNames = ['fate', 'K', 'J', '10', '9', '8', 'A'];
-    //     const cardTypes = ['FATE', 'NORMAL', 'NORMAL', 'NORMAL', 'NORMAL', 'NORMAL', 'ANONYMOUS'];
-
-    //     return {
-    //       id: user.user_id,
-    //       image: user.profile_image,
-    //       name: user.name,
-    //       status: 'Online',
-    //       card_name: cardNames[index % cardNames.length],
-    //       card_type: cardTypes[index % cardTypes.length],
-    //     };
-    //   });
-    //   const jokerEntry = {
-    //     id: 6,
-    //     image: 'https://res.cloudinary.com/dl91sgjy1/image/upload/f_jpg/v1711394452/qdyx6olrunykjavtuw4o.jpg',
-    //     name: 'Jhon',
-    //     status: 'Online',
-    //     card_name: 'Joker',
-    //     card_type: 'JOKER',
-    //   };
-
-    //   newMatchList.push(jokerEntry);
-
-    //   setMatchList(newMatchList);
-    // }
-
-    // setLoading(false);
   };
   const callGetUsersforJokerCard = async (id) => {
     setLoading(true);
@@ -257,6 +184,8 @@ function HomePage({ route, navigation }) {
     console.log('HomePage');
     getMatchUsersList();
   }, []);
+
+
 
   const DisqualifyComponent = () => {
     return (<TouchableOpacity activeOpacity={0.9} style={styles.fate_card_main_container}>

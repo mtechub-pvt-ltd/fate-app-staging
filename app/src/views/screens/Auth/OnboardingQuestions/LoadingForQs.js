@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, Image, TouchableHighlight,
-  TouchableOpacity,
-  Alert
+  TouchableOpacity
 } from 'react-native';
 import Voice from '@react-native-voice/voice';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
@@ -10,7 +9,6 @@ import { getAllQuestions, addAnswertoQuestion } from '../../../../Services/Auth/
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import COLORS from '../../../../consts/colors';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
-import Header from '../../../../components/TopBar/Header';
 import fonts from '../../../../consts/fonts';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Images from '../../../../consts/Images';

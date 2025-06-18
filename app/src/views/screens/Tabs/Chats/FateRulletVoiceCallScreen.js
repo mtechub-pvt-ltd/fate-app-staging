@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Image, Platform, PermissionsAndroid,
+  Image, Platform,
   ActivityIndicator
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { fonts } from '../../../../consts/fonts';
 
-import { RTCPeerConnection, RTCView, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+// import { RTCPeerConnection, mediaDevices, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
+import { RTCPeerConnection, mediaDevices, RTCIceCandidate, RTCSessionDescription } from '@daily-co/react-native-webrtc';
 import io from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
 import { node_base_url } from '../../../../consts/baseUrls';
@@ -15,16 +15,12 @@ import COLORS from '../../../../consts/colors';
 import { responsiveHeight, responsiveWidth, responsiveFontSize } from 'react-native-responsive-dimensions';
 import {
   answerTheCall,
-  endTheCall,
-  initateTheCall,
-  initateRulletCall,
-  deleteToken
+  initateRulletCall
 } from '../../../../Services/Auth/SignupService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GradientBackground from '../../../../components/MainContainer/GradientBackground';
 import PrimaryButton from '../../../../components/Button/PrimaryButton';
 import { BlurView } from '@react-native-community/blur';
-import { getUserDetail } from '../../../../HelperFunctions/AsyncStorage/userDetail';
 
 
 
@@ -296,7 +292,7 @@ const VideoCallScreen = ({ route, navigation }) => {
           {
             name: 'MyTabs',
             params: {
-              screen: 'HomePage_test',
+              screen: 'Home',
             },
           },
         ],
